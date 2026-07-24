@@ -1,0 +1,10 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Future tooling (Phase 2+ may add npm deps for bitcoinjs-lib, etc.)
+node_modules/
+dist/
+.env

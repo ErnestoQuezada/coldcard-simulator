@@ -1,0 +1,106 @@
+/* ============================================================
+   keypad.css
+   ------------------------------------------------------------
+   The 4x3 physical keypad: square keys, the colored ring accent,
+   nav arrows on 5/7/8/9, and the red/green cancel/confirm keys.
+
+   Input BEHAVIOR (click handling, physical keyboard mapping) is
+   NOT here — see js/ui/keypad-controller.js. This file is purely
+   visual.
+   ============================================================ */
+
+.keypad {
+  position: relative;
+  z-index: 2;
+  width: 95%; /* slightly narrower than the screen above, so the
+                 case's orange edge shows on both sides */
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.key {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 22%; /* rounded square, not a circle */
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace; /* OCR-ish digital look */
+  font-size: 32px;
+  font-weight: 400;
+  color: #efefef;
+  background: linear-gradient(160deg, var(--key-bg-hi), var(--key-bg) 60%);
+  box-shadow:
+    0 0 0 3px var(--key-ring),
+    /* colored accent ring */ 0 3px 0 var(--key-border),
+    /* hard "keycap" drop */ 0 5px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Faint specular highlight arc — subtle, not a strong glare */
+.key::before {
+  content: '';
+  position: absolute;
+  top: 8%;
+  left: 12%;
+  width: 50%;
+  height: 26%;
+  border-radius: 40%;
+  background: rgba(255, 255, 255, 0.06);
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+/* Pressed state: key "sinks in", shared by mouse :active and the
+   .pressed class toggled programmatically for keyboard presses */
+.key:active,
+.key.pressed {
+  transform: translateY(3px);
+  box-shadow:
+    0 0 0 3px var(--key-ring),
+    0 0 0 var(--key-border),
+    0 1px 3px rgba(0, 0, 0, 0.5),
+    inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+/* Directional arrow glyphs overlaid on keys 5 / 7 / 8 / 9 */
+.key .arrow {
+  position: absolute;
+  top: -3px;
+  font-size: 15px;
+  color: var(--accent-amber);
+}
+.key .arrow.left {
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.key .arrow.right {
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.key .arrow.up {
+  top: 1px;
+}
+.key .arrow.down {
+  bottom: 1px;
+  top: auto;
+}
+
+/* Cancel (X) / Confirm (checkmark) color variants */
+.key.cancel {
+  background: linear-gradient(160deg, #3a2420, #1c1210);
+  color: var(--accent-red);
+}
+.key.confirm {
+  background: linear-gradient(160deg, #1e3324, #101f16);
+  color: var(--accent-green);
+}

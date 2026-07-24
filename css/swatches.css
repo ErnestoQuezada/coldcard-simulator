@@ -1,0 +1,33 @@
+/* ============================================================
+   swatches.css
+   ------------------------------------------------------------
+   The row of color-theme swatch buttons below the device.
+   Buttons themselves are created dynamically by
+   js/ui/theme-picker.js from the list in js/config/themes.js.
+   ============================================================ */
+
+.swatches {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.swatch:hover {
+  transform: translateY(-2px);
+}
+
+.swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25);
+}

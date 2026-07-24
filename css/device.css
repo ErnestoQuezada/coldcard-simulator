@@ -1,0 +1,213 @@
+/* ============================================================
+   device.css
+   ------------------------------------------------------------
+   The translucent plastic case, its bevel, the dark "frame"
+   panel that houses the logos + screen, the status LED, and
+   the small grip-ridge details on the case sides.
+
+   Relies on color tokens from variables.css — never hardcode
+   a case color here, always reference a --plastic-* variable
+   so the 6 themes keep working.
+   ============================================================ */
+
+/* ---------- Outer shell ---------- */
+
+.device {
+  position: relative;
+  width: min(280px, 86vw);
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  padding: 10px 15px 14px 15px;
+  background: linear-gradient(
+    135deg,
+    var(--plastic-glow) 0%,
+    var(--plastic-1) 14%,
+    var(--plastic-2) 55%,
+    var(--plastic-3) 100%
+  );
+  box-shadow:
+    /* drop shadow, lifts the device off the page */
+    0 30px 60px -20px rgba(0, 0, 0, 0.7),
+    0 8px 20px rgba(0, 0, 0, 0.5),
+    /* injection-molded bevel around all 4 edges */
+    inset 0 3px 3px rgba(255, 255, 255, 0.65),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.3),
+    inset 3px 0 5px rgba(255, 255, 255, 0.18),
+    inset -3px 0 10px rgba(0, 0, 0, 0.3),
+    inset 0 -16px 26px rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--case-shadow);
+  transition: background 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+/* Diagonal glossy sheen + top-left specular highlight, like the
+   translucent polycarbonate shell in the reference photos. */
+.device::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 140px 90px at 24% 10%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 70%),
+    linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.06) 20%,
+      rgba(255, 255, 255, 0) 36%,
+      rgba(0, 0, 0, 0.06) 62%,
+      rgba(0, 0, 0, 0.2) 100%
+    );
+  pointer-events: none;
+}
+
+/* Subtle inner rim line, ~6px in from the outer edge */
+.device::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+/* ---------- Dark frame panel (logos + screen sit inside this) ---------- */
+
+.top-panel {
+  position: relative;
+  z-index: 2;
+  background: linear-gradient(180deg, #4a3018, #2c1c0c);
+  border-radius: 16px;
+  padding: 8px 8px 10px 8px;
+  margin-bottom: 8px;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.5),
+    0 2px 5px rgba(0, 0, 0, 0.35);
+}
+
+.top-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px 4px;
+}
+
+/* ---------- Status LED ---------- */
+
+.led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px 2px rgba(61, 220, 116, 0.8);
+  animation: blink 2.6s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ---------- Logos (engraved-plastic look) ---------- */
+
+.brand-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-left span.logo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: #ece2d2;
+  letter-spacing: 0.02em;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.brand-right {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--key-ring);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: color 0.5s ease;
+}
+
+/* ---------- Frame indicator dots (below the screen) ---------- */
+
+.frame-dots {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.frame-dots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--key-ring);
+  opacity: 0.85;
+  transition: background 0.5s ease;
+}
+
+/* ---------- Side grip-ridge details ----------
+   Small embossed tabs on the case's left/right edge, aligned
+   with keypad rows 1 (1-2-3) and 3 (7-8-9). Purely decorative;
+   positioned as absolute children of .keypad in keypad.css. */
+
+.grip-tab {
+  position: absolute;
+  width: 7px;
+  height: 30px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--plastic-glow), var(--plastic-2));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+  transform: translateY(-50%);
+  transition: background 0.5s ease;
+  pointer-events: none;
+}
+
+.grip-tab.left-r1 {
+  left: -13px;
+  top: 12.5%;
+}
+.grip-tab.right-r1 {
+  right: -13px;
+  top: 12.5%;
+}
+.grip-tab.left-r3 {
+  left: -13px;
+  top: 62.5%;
+}
+.grip-tab.right-r3 {
+  right: -13px;
+  top: 62.5%;
+}
+
+/* ---------- Footer mark ---------- */
+
+.footer-mark {
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(0, 0, 0, 0.35);
+  margin-top: 6px;
+  z-index: 2;
+  position: relative;
+}

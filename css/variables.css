@@ -1,0 +1,103 @@
+/* ============================================================
+   variables.css
+   ------------------------------------------------------------
+   Single source of truth for every color used by the device.
+   `:root` holds the default (orange) values. Each `[data-theme]`
+   block overrides the same variables for a different colorway.
+
+   To add a new colorway:
+     1. Add a `[data-theme="yourname"]` block here with the same
+        6 variables as the others.
+     2. Add a matching entry in `js/config/themes.js` so it shows
+        up in the swatch picker.
+   ============================================================ */
+
+:root {
+  /* -- Case plastic (translucent shell) -- */
+  --plastic-1: #f08a1e;     /* top highlight of the gradient */
+  --plastic-2: #d4700a;     /* mid tone */
+  --plastic-3: #a3540a;     /* shadowed edge */
+  --plastic-glow: #ffd9a3;  /* brightest specular point */
+  --case-shadow: #5e3405;   /* outer border / drop shadow tint */
+
+  /* -- Accents -- */
+  --key-ring: #ff6600;      /* ring around each key + Mk5 logo + dots */
+  --brand-text: #3a2004;    /* unused directly on the frame, kept for reference */
+
+  /* -- Keycaps (theme-independent, same for every colorway) -- */
+  --key-bg: #161616;
+  --key-bg-hi: #232323;
+  --key-border: #050505;
+
+  /* -- Screen (OLED simulation) -- */
+  --screen-bg: #0a0e0b;
+  --screen-fg: #cfe0cf;
+  --screen-fg-dim: #6d8570;
+
+  /* -- Status colors -- */
+  --accent-green: #3ddc74;
+  --accent-red: #e8503a;
+  --accent-amber: #f0a83c;
+}
+
+/* ---------- Color themes ---------- */
+
+[data-theme="orange"] {
+  --plastic-1: #f08a1e;
+  --plastic-2: #d4700a;
+  --plastic-3: #a3540a;
+  --plastic-glow: #ffd9a3;
+  --case-shadow: #5e3405;
+  --key-ring: #ff6600;
+  --brand-text: #3a2004;
+}
+
+[data-theme="green"] {
+  --plastic-1: #8fe04a;
+  --plastic-2: #5cb82a;
+  --plastic-3: #3a8a18;
+  --plastic-glow: #d9ffb0;
+  --case-shadow: #21510d;
+  --key-ring: #9df05a;
+  --brand-text: #173d08;
+}
+
+[data-theme="blue"] {
+  --plastic-1: #57d0e0;
+  --plastic-2: #29a8c2;
+  --plastic-3: #157a92;
+  --plastic-glow: #c8f5ff;
+  --case-shadow: #0b4a5a;
+  --key-ring: #6fe0f0;
+  --brand-text: #063341;
+}
+
+[data-theme="purple"] {
+  --plastic-1: #c060e0;
+  --plastic-2: #9a2fc0;
+  --plastic-3: #6b1a8a;
+  --plastic-glow: #f0c8ff;
+  --case-shadow: #3d0f52;
+  --key-ring: #d478ee;
+  --brand-text: #33073f;
+}
+
+[data-theme="pink"] {
+  --plastic-1: #ff6fa8;
+  --plastic-2: #e83f82;
+  --plastic-3: #b02058;
+  --plastic-glow: #ffd0e4;
+  --case-shadow: #6b0f34;
+  --key-ring: #ff8fbc;
+  --brand-text: #4a0724;
+}
+
+[data-theme="graphite"] {
+  --plastic-1: #9aa0a8;
+  --plastic-2: #6b7178;
+  --plastic-3: #454a50;
+  --plastic-glow: #e4e8ec;
+  --case-shadow: #202326;
+  --key-ring: #b8bec4;
+  --brand-text: #16181a;
+}

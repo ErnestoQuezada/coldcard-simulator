@@ -1,0 +1,28 @@
+/* ============================================================
+   screen.css
+   ------------------------------------------------------------
+   The recessed "OLED" bezel and the <canvas> it contains.
+   All actual pixel content is drawn by js/ui/screen-renderer.js
+   — this file only handles the physical frame around it.
+   ============================================================ */
+
+.screen-frame {
+  position: relative;
+  margin: 0 4px;
+  padding: 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #2a1604, #150c02);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.4), inset 0 6px 10px rgba(0, 0, 0, 0.6);
+}
+
+.screen-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* Matches the canvas's intrinsic width="560" height="250" in index.html.
+     Keep this ratio and those attributes in sync if either changes. */
+  aspect-ratio: 2.24 / 1;
+  border-radius: 8px;
+  background: var(--screen-bg);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, 0.9);
+}

@@ -1,0 +1,55 @@
+/* ============================================================
+   base.css
+   ------------------------------------------------------------
+   Page-level reset and layout. Nothing device-specific lives
+   here — see device.css / screen.css / keypad.css for that.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;700&family=Share+Tech+Mono&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: radial-gradient(ellipse at 50% 0%, #1c1f24 0%, #101216 55%, #0a0b0d 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Vertical stack: workspace + instructions.
+   max-width is sized for TWO devices side-by-side (280px + 280px + the
+   workspace gap), not just one — see css/workspace.css for the actual
+   side-by-side flex layout. On narrow (mobile) screens this has no
+   effect: each .device already shrinks via width:min(280px, 86vw), so
+   the workspace naturally wraps them to a vertical stack instead. */
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 12px;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.hint {
+  color: #5a6068;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+  max-width: 90vw;
+  line-height: 1.6;
+}
+
+.hint b {
+  color: #8b94a3;
+}

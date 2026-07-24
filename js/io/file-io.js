@@ -1,0 +1,91 @@
+/**
+ * io/file-io.js
+ * ------------------------------------------------------------
+ * Browser file download/upload helpers. This is the ONLY module in
+ * the project allowed to touch Blob / URL.createObjectURL / the DOM
+ * download mechanism directly — everything else (wallet-export.js,
+ * device-state.js) stays pure and hands this module a plain object
+ * or string to save. core/ modules never import this file directly;
+ * device-instance.js is the bridge (see its onExportRequested wiring).
+ *
+ * Kept deliberately small and generic: downloadTextFile()/downloadJSON()
+ * generalize to "any file to save", and openBinaryFile() below is the
+ * read-side counterpart, used for loading a PSBT to sign.
+ */
+
+/**
+ * Triggers a browser download of a JSON object as a formatted .json file.
+ * @param {string} filename
+ * @param {object} data - JSON-serializable plain object
+ */
+export function downloadJSON(filename, data) {
+  downloadTextFile(filename, JSON.stringify(data, null, 2));
+}
+
+/**
+ * Triggers a browser download of a plain text file.
+ * @param {string} filename
+ * @param {string} content
+ */
+export function downloadTextFile(filename, content) {
+  triggerDownload(new Blob([content], { type: 'application/octet-stream' }), filename);
+}
+
+/**
+ * Triggers a browser download of raw binary data — used for the
+ * signed PSBT, which is a binary format, not text/JSON.
+ * @param {string} filename
+ * @param {Uint8Array} bytes
+ */
+export function downloadBinaryFile(filename, bytes) {
+  triggerDownload(new Blob([bytes], { type: 'application/octet-stream' }), filename);
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // Revoke on the next tick rather than immediately — revoking right
+  // away can cancel the download in some browsers before it starts.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+/**
+ * Opens the browser's file picker and reads the chosen file as raw
+ * bytes — used for loading a PSBT to sign. Resolves to `null` if the
+ * user cancels (best-effort: the file input's `cancel` event isn't
+ * supported in every browser, so a cancelled pick may not resolve at
+ * all in those cases rather than resolving to `null`).
+ * @param {object} [opts]
+ * @param {string} [opts.accept] - e.g. '.psbt'
+ * @returns {Promise<{name: string, bytes: Uint8Array}|null>}
+ */
+export function openBinaryFile({ accept = '' } = {}) {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    if (accept) input.accept = accept;
+
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      const buffer = await file.arrayBuffer();
+      resolve({ name: file.name, bytes: new Uint8Array(buffer) });
+    });
+
+    // Best-effort cancel detection — supported in Chromium/Firefox but
+    // not universally, hence the caveat above.
+    input.addEventListener('cancel', () => resolve(null));
+
+    input.click();
+  });
+}
