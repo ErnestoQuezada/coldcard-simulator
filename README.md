@@ -29,13 +29,13 @@ BIP39 seed that never leaves the tab.
 ## What even is this?
 
 It's a pixel-for-pixel(ish), keypad-and-all simulator of a real
-Coldcard — generate a seed, add a passphrase, export to Sparrow,
+Coldcard — generate a seed, save it locally, add a passphrase, export to Sparrow,
 sign a PSBT, and even build a full 2-of-2 multisig wallet across
 **two simulated devices in the same browser tab.** All of it running
 on the same math, the same derivation paths, and the same file
 formats the real hardware uses.
 
-Why? Because buying a hardware wallet just to *learn* how self-custody
+Why? Because buying a hardware wallet just to _learn_ how self-custody
 works is a weird ask. This lets you practice the whole ritual —
 seed words, passphrases, PSBTs, multisig ceremonies — for free,
 on regtest, with zero risk, before you ever touch real sats.
@@ -44,13 +44,12 @@ on regtest, with zero risk, before you ever touch real sats.
 be, a real security device. Never type a seed phrase you actually
 care about into this (or any) website. Regtest coins only, always.
 
-##  See it in action
+## See it in action
 
--  [Part 1 — building a wallet, passphrases, and Sparrow export](https://rumble.com/v7d6ll2-colcard-mk5-web-simulator-01.html)
--  [Part 2 — signing PSBTs and a full multisig ceremony](https://rumble.com/v7d6ln6-coldcard-mk5-web-simulator-02.html)
+- [Part 1 — building a wallet, passphrases, and Sparrow export](https://rumble.com/v7d6ll2-colcard-mk5-web-simulator-01.html)
+- [Part 2 — signing PSBTs and a full multisig ceremony](https://rumble.com/v7d6ln6-coldcard-mk5-web-simulator-02.html)
 
-
-##  About the real Coldcard
+## About the real Coldcard
 
 **[Coinkite](https://coinkite.com)** designs and builds the actual
 Coldcard hardware wallet — this project is just a fan-built,
@@ -61,24 +60,34 @@ money — in my opinion, it's the best hardware wallet out there for
 anyone serious about Bitcoin self-custody. This simulator exists to
 get more people ready for that day, not to replace it.
 
-##  What it can actually do
+## What it can actually do
 
 **The device itself**
+
 - A chunky, glowing, satisfyingly clicky on-screen keypad — works with
-  your mouse *or* your actual keyboard
+  your mouse _or_ your actual keyboard
 - 6 colorways because why not (orange, green, blue, purple, pink, graphite)
 - Run **1 or 2 devices side by side** in the same window — the whole
   point is testing multisig without owning two Coldcards
 
 **Wallets & seeds**
+
 - Real entropy (`crypto.getRandomValues`, the correct way, every time)
 - Generate a new 12-word seed, complete with the "did you actually
   write it down" quiz
 - Import an existing seed, word by word, off the real BIP39 wordlist
-- Add a BIP39 passphrase and watch it become a *completely different*
+- Add a BIP39 passphrase and watch it become a _completely different_
   wallet — same words, different universe
+- Save, load, and delete simulator wallets in this browser's local
+  storage through the **Wallet Storage** menu. This stores the mnemonic
+  and passphrase needed to recreate the wallet; never use a real seed here.
+- Register multisig policies from **Settings > Multisig Wallets > Import
+  from SD**. Policies are stored separately from seed wallets, so a
+  singlesig wallet and a multisig policy can coexist even when they use
+  the same master fingerprint, matching Coldcard's wallet-policy model.
 
 **Talking to the outside world**
+
 - Export your wallet as `coldcard-export.json` — drop it straight
   into Sparrow, no fiddling
 - Browse your receive & change addresses (Legacy, Nested Segwit,
@@ -86,16 +95,17 @@ get more people ready for that day, not to replace it.
   showed you" safety check the real device does
 
 **Signing money-moving things**
+
 - Upload a real PSBT from Sparrow, review exactly what it's asking you
-  to sign (inputs, outputs, fee, and which output is *your own change*),
+  to sign (inputs, outputs, fee, and which output is _your own change_),
   then sign it and download the result
 - **Full multisig, 2-of-2, done the real way**: export each device's
-  XPUB, combine them into one wallet, register that wallet on *both*
+  XPUB, combine them into one wallet, register that wallet on _both_
   devices, then pass a PSBT back and forth between them until it's
   fully signed. No shortcuts, even though technically we could've
   cheated since both devices live in the same tab.
 
-##  Not just a toy — actual security lessons baked in
+## Not just a toy — actual security lessons baked in
 
 A few things this project takes seriously, the same way the real
 device does:
@@ -121,22 +131,27 @@ device does:
 
 Not bad for a browser toy.
 
-##  Running it yourself
+## Running it yourself
 
 No build step. No `npm install`. It's plain HTML/CSS/JS with ES
-modules. One catch: browsers block ES modules from loading over
-`file://`, so you need a tiny local server:
+modules and locally vendored crypto libraries. Browsers block ES
+modules from loading over `file://`, so serve the project over HTTP
+with XAMPP or another local web server:
 
 ```bash
 # from inside the coldcard-web-simulator/ folder
-python3 -m http.server 8000
+# with XAMPP, open http://localhost/coldcard-web-simulator
+# or use a PHP server from this folder:
+php -S localhost:8000
 # then open http://localhost:8000
 ```
 
-(`npx serve`, `php -S localhost:8000`, whatever you've got lying
-around works too.)
+Saved wallets stay in the browser profile's local storage and are not
+shared through the web server. Existing wallets in `data/wallets.sqlite`
+are not imported automatically; back up anything you need, then remove
+that legacy server-side database.
 
-##  How it's organized
+## How it's organized
 
 Built to be readable by a stranger (or by future-you in three
 months) — every module has one job:
@@ -165,7 +180,7 @@ coldcard-web-simulator/
     └── ui/                    # canvas rendering, keypad input, theme picker
 ```
 
-##  Built with
+## Built with
 
 Everything crypto-related comes from the `@scure`/`@noble` family
 (Paul Miller's audited, no-WASM, no-CDN-needed libraries) — same
@@ -179,7 +194,7 @@ ecosystem end to end, nothing mixed in from elsewhere:
 All vendored straight into the repo — no CDN, works offline, and
 you can read every line of crypto code this thing runs.
 
-##  Roadmap
+## Roadmap
 
 - [ ] QR codes for Address Explorer (the whole point of that screen
       on a real device — scan and receive)
@@ -189,12 +204,12 @@ you can read every line of crypto code this thing runs.
 - [ ] A completely unnecessary easter-egg mini-game, kept far away
       from anything Bitcoin-related
 
-##  License
+## License
 
 MIT — see [`LICENSE`](./LICENSE). Fork it, learn from it, build on
 it, teach with it.
 
-##  One more time, because it matters
+## One more time, because it matters
 
 This is a fan project, not an official Coinkite product, and not
 affiliated with Coinkite. All credit for the actual Coldcard design

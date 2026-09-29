@@ -21,8 +21,8 @@
  *     stop its work — no per-instance loop to leak.
  */
 
-import { DeviceInstance } from './device-instance.js';
-import { PHYSICAL_KEY_MAP } from '../ui/keypad-controller.js';
+import { DeviceInstance } from "./device-instance.js";
+import { PHYSICAL_KEY_MAP } from "../ui/keypad-controller.js";
 
 const MIN_DEVICES = 1;
 const MAX_DEVICES = 2;
@@ -44,14 +44,18 @@ export class Workspace {
     /** @type {DeviceInstance|null} whichever instance currently owns keyboard focus */
     this.activeDevice = null;
 
-    this.addButtonEl.addEventListener('click', () => this.addDevice());
+    this.addButtonEl.addEventListener("click", () => this.addDevice());
 
     // Single shared listener for ALL instances — see file header for why.
-    window.addEventListener('keydown', (event) => this._handlePhysicalKey(event));
+    window.addEventListener("keydown", (event) =>
+      this._handlePhysicalKey(event),
+    );
 
     // Bubbled from DeviceInstance when the user clicks/taps a device.
-    this.workspaceEl.addEventListener('device-focus-request', (event) => {
-      const instance = this.devices.find((d) => d.rootEl.contains(event.target));
+    this.workspaceEl.addEventListener("device-focus-request", (event) => {
+      const instance = this.devices.find((d) =>
+        d.rootEl.contains(event.target),
+      );
       if (instance) this.setActiveDevice(instance);
     });
 
@@ -65,9 +69,11 @@ export class Workspace {
   addDevice() {
     if (this.devices.length >= MAX_DEVICES) return;
 
-    const instance = new DeviceInstance(this.template);
+    const instance = new DeviceInstance(this.template, this.devices.length);
 
-    instance.removeBtnEl.addEventListener('click', () => this.removeDevice(instance.id));
+    instance.removeBtnEl.addEventListener("click", () =>
+      this.removeDevice(instance.id),
+    );
 
     this.workspaceEl.appendChild(instance.rootEl);
     this.devices.push(instance);
@@ -111,7 +117,10 @@ export class Workspace {
 
   /** Labels devices by their current left-to-right position: "Device 1", "Device 2". */
   _relabelDevices() {
-    this.devices.forEach((d, i) => d.setLabel(`Device ${i + 1}`));
+    this.devices.forEach((d, i) => {
+      d.setLabel(`Device ${i + 1}`);
+      d.setThemeSlot(i);
+    });
   }
 
   /** Add button hides at the max; remove buttons disable at the min. */

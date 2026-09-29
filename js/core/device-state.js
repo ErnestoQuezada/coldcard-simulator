@@ -10,13 +10,14 @@
  * KEY DESIGN FACT: a real Coldcard, once set up, ALWAYS has a
  * wallet loaded — that's why "Ready To Sign" is the first menu
  * item, it presumes something exists to sign with. We mirror that:
- * every device instance generates its own random wallet the moment
- * it boots, before the menu is ever reachable. "New Seed Words",
+ * every device instance restores the most recently saved wallet when
+ * browser-local storage has one, otherwise it generates a random wallet
+ * before the menu is ever reachable. "New Seed Words",
  * "Passphrase", and (later) "Import Seed" don't create the FIRST
  * wallet — they REPLACE whichever one is currently active.
  *
  * PASSPHRASE DESIGN NOTE: applying a passphrase never changes the
- * 12 words — it derives a completely different (but fully
+ * seed words — it derives a completely different (but fully
  * deterministic) wallet from the SAME words plus whatever text was
  * entered. See wallet-engine.js's Wallet class for why an empty and
  * a non-empty passphrase are two totally unrelated wallets, not a
@@ -31,12 +32,22 @@
  * those happen and what's on screen.
  */
 
-import { generateNewMnemonic, isValidMnemonic, Wallet } from './wallet-engine.js';
-import { buildSeedQuiz } from './seed-quiz.js';
-import { WordPicker } from './word-picker.js';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { deriveAddress, SCRIPT_TYPES } from './address-explorer.js';
-import { parsePsbt, buildReviewSummary, signRecognizedInputs, finalizeOrExportPartial, signedFilename } from './psbt-signer.js';
+import {
+  generateNewMnemonic,
+  isValidMnemonic,
+  Wallet,
+} from "./wallet-engine.js";
+import { buildSeedQuiz } from "./seed-quiz.js";
+import { WordPicker } from "./word-picker.js";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { deriveAddress, SCRIPT_TYPES } from "./address-explorer.js";
+import {
+  parsePsbt,
+  buildReviewSummary,
+  signRecognizedInputs,
+  finalizeOrExportPartial,
+  signedFilename,
+} from "./psbt-signer.js";
 import {
   MultisigWallet,
   buildCosignerExport,
@@ -44,34 +55,37 @@ import {
   cosignerFromExportJson,
   buildMultisigConfigText,
   parseMultisigConfigText,
-} from './multisig-wallet.js';
+} from "./multisig-wallet.js";
 
 /** Every screen the simulator can currently show. */
 export const AppState = Object.freeze({
-  BOOT: 'boot',
-  CREATING_WALLET: 'creating_wallet',
-  WELCOME: 'welcome',
-  MENU: 'menu',
-  SEED_DISPLAY: 'seed_display', // showing newly generated words, not yet committed
-  SEED_QUIZ: 'seed_quiz', // multiple-choice verification of those words
-  PASSPHRASE_MENU: 'passphrase_menu', // Add Word / Add Numbers / Clear All / Apply / Cancel
-  PASSPHRASE_ADD_WORD: 'passphrase_add_word', // navigating the BIP39 wordlist
-  PASSPHRASE_ADD_NUMBERS: 'passphrase_add_numbers', // typing digits directly
-  PASSPHRASE_APPLY_PREVIEW: 'passphrase_apply_preview', // shows resulting XFP before committing
-  IMPORT_SEED_WORD: 'import_seed_word', // entering one of the 12 words, via the same WordPicker as Add Word
-  IMPORT_SEED_REVIEW: 'import_seed_review', // all 12 entered + checksum valid — shows resulting XFP before committing
-  ADVANCED_MENU: 'advanced_menu', // Export Wallet / Back
-  ADDRESS_TYPE_MENU: 'address_type_menu', // choose Legacy / Nested Segwit / Native Segwit
-  ADDRESS_VIEW: 'address_view', // paginate index, toggle receive/change, within the chosen type
-  PSBT_LOADING: 'psbt_loading', // brief "Reading... / Validating..." — genuine parsing happens here
-  PSBT_REVIEW: 'psbt_review', // inputs/outputs/fee, change highlighted, before signing
-  PSBT_SIGNED: 'psbt_signed', // confirmation + the signed file has been offered for download
-  PSBT_ERROR: 'psbt_error', // couldn't parse, or nothing recognized to sign, or finalize failed
-  SETTINGS_MENU: 'settings_menu', // Multisig Wallets / Back
-  MULTISIG_MENU: 'multisig_menu', // Export XPUB / Create Multisig Wallet / Import from SD / View Registered Wallet / Back
-  MULTISIG_CREATE_REVIEW: 'multisig_create_review', // about-to-create summary, before confirming
-  MULTISIG_INFO: 'multisig_info', // registered wallet's name/policy/first address
-  MULTISIG_ERROR: 'multisig_error', // malformed file, or the "your own key isn't in this file" security refusal
+  BOOT: "boot",
+  CREATING_WALLET: "creating_wallet",
+  WELCOME: "welcome",
+  MENU: "menu",
+  SEED_DISPLAY: "seed_display", // showing newly generated words, not yet committed
+  SEED_QUIZ: "seed_quiz", // multiple-choice verification of those words
+  PASSPHRASE_MENU: "passphrase_menu", // Add Word / Add Numbers / Clear All / Apply / Cancel
+  PASSPHRASE_ADD_WORD: "passphrase_add_word", // navigating the BIP39 wordlist
+  PASSPHRASE_ADD_NUMBERS: "passphrase_add_numbers", // typing digits directly
+  PASSPHRASE_APPLY_PREVIEW: "passphrase_apply_preview", // shows resulting XFP before committing
+  IMPORT_SEED_LENGTH: "import_seed_length", // choose 12, 18, or 24 words before entry
+  IMPORT_SEED_WORD: "import_seed_word", // entering seed words via the same WordPicker as Add Word
+  IMPORT_SEED_REVIEW: "import_seed_review", // all words entered + checksum valid — shows resulting XFP before committing
+  ADVANCED_MENU: "advanced_menu", // Export Wallet / Back
+  WALLET_STORAGE_MENU: "wallet_storage_menu", // Save / Load / Delete / Back
+  WALLET_STORAGE_LOAD: "wallet_storage_load", // choose a saved wallet
+  ADDRESS_TYPE_MENU: "address_type_menu", // choose Legacy / Nested Segwit / Native Segwit
+  ADDRESS_VIEW: "address_view", // paginate index, toggle receive/change, within the chosen type
+  PSBT_LOADING: "psbt_loading", // brief "Reading... / Validating..." — genuine parsing happens here
+  PSBT_REVIEW: "psbt_review", // inputs/outputs/fee, change highlighted, before signing
+  PSBT_SIGNED: "psbt_signed", // confirmation + the signed file has been offered for download
+  PSBT_ERROR: "psbt_error", // couldn't parse, or nothing recognized to sign, or finalize failed
+  SETTINGS_MENU: "settings_menu", // Multisig Wallets / Back
+  MULTISIG_MENU: "multisig_menu", // Export XPUB / Create Multisig Wallet / Import from SD / View Registered Wallet / Back
+  MULTISIG_CREATE_REVIEW: "multisig_create_review", // about-to-create summary, before confirming
+  MULTISIG_INFO: "multisig_info", // registered wallet's name/policy/first address
+  MULTISIG_ERROR: "multisig_error", // malformed file, or the "your own key isn't in this file" security refusal
 });
 
 /** How long the "creating wallet" curtain animation plays, in ~60fps frames. */
@@ -81,7 +95,13 @@ const WALLET_CREATION_FRAMES = 60; // ~1 second
 const PSBT_LOADING_FRAMES = 40; // ~0.66 second — first half "Reading...", second half "Validating..."
 
 /** Passphrase submenu items, in the order the real Coldcard shows them. */
-const PASSPHRASE_MENU_ITEMS = ['Add Word', 'Add Numbers', 'Clear All', 'Apply', 'Cancel'];
+const PASSPHRASE_MENU_ITEMS = [
+  "Add Word",
+  "Add Numbers",
+  "Clear All",
+  "Apply",
+  "Cancel",
+];
 
 /** Real Coldcard caps "Add Numbers" entry at 32 digits per use. */
 const MAX_NUMBER_DIGITS = 32;
@@ -94,8 +114,8 @@ const MAX_NUMBER_DIGITS = 32;
  */
 const MAX_PASSPHRASE_CHUNKS = 2;
 
-/** This simulator only offers 12-word import, matching the 12-word generation flow. */
-const IMPORT_WORD_COUNT = 12;
+/** BIP39 mnemonic lengths supported by the real Coldcard import flow. */
+const IMPORT_WORD_COUNTS = [12, 18, 24];
 
 /**
  * Advanced/Tools submenu — real Coldcard has many more entries here;
@@ -103,17 +123,31 @@ const IMPORT_WORD_COUNT = 12;
  * now. Add more items to this list as more Advanced/Tools features
  * get built, the same way this list itself started as just this one.
  */
-const ADVANCED_MENU_ITEMS = ['Export Wallet', 'Back'];
+const ADVANCED_MENU_ITEMS = ["Export Wallet", "Back"];
+
+/** Wallet persistence actions backed by this browser's local storage. */
+const WALLET_STORAGE_ITEMS = [
+  "Save Current Wallet",
+  "Load Saved Wallet",
+  "Delete Saved Wallet",
+  "Back",
+];
 
 /** Settings — real Coldcard has many more entries here too; same scope note as above. */
-const SETTINGS_MENU_ITEMS = ['Multisig Wallets', 'Back'];
+const SETTINGS_MENU_ITEMS = ["Multisig Wallets", "Back"];
 
 /** Multisig Wallets submenu, under Settings. */
-const MULTISIG_MENU_ITEMS = ['Export XPUB', 'Create Multisig Wallet', 'Import from SD', 'View Registered Wallet', 'Back'];
+const MULTISIG_MENU_ITEMS = [
+  "Export XPUB",
+  "Create Multisig Wallet",
+  "Import from SD",
+  "View Registered Wallet",
+  "Back",
+];
 
 /** This simulator's fixed multisig policy — see project scope notes (native segwit, 2-of-2 only). */
 const MULTISIG_M = 2;
-const MULTISIG_NAME = 'Coldcard-Web-Sim';
+const MULTISIG_NAME = "Coldcard-Web-Sim";
 
 export class DeviceStateMachine {
   /**
@@ -145,6 +179,13 @@ export class DeviceStateMachine {
    * @param {(filename: string, text: string) => void} [callbacks.onMultisigConfigReady] -
    *   called with the combined config text once "Create Multisig
    *   Wallet" is confirmed, so device-instance.js can download it.
+   * @param {(wallet: import('./wallet-engine.js').Wallet) => Promise<object>|void} [callbacks.onWalletSaveRequested]
+   * @param {() => Promise<object[]>|void} [callbacks.onWalletListRequested]
+   * @param {(record: object) => Promise<import('./wallet-engine.js').Wallet>|void} [callbacks.onWalletLoadRequested]
+   * @param {(id: string|number) => Promise<void>|void} [callbacks.onWalletDeleteRequested]
+   * @param {(wallet: import('./multisig-wallet.js').MultisigWallet) => Promise<object>|void} [callbacks.onMultisigSaveRequested]
+   * @param {() => Promise<object[]>|void} [callbacks.onMultisigListRequested]
+   * @param {(record: object) => Promise<import('./multisig-wallet.js').MultisigWallet>|void} [callbacks.onMultisigLoadRequested]
    */
   constructor(
     menuItems,
@@ -156,7 +197,14 @@ export class DeviceStateMachine {
       onCombineRequested,
       onRegisterRequested,
       onMultisigConfigReady,
-    } = {}
+      onWalletSaveRequested,
+      onWalletListRequested,
+      onWalletLoadRequested,
+      onWalletDeleteRequested,
+      onMultisigSaveRequested,
+      onMultisigListRequested,
+      onMultisigLoadRequested,
+    } = {},
   ) {
     this.menuItems = menuItems;
     this._onExportRequested = onExportRequested || (() => {});
@@ -166,10 +214,54 @@ export class DeviceStateMachine {
     this._onCombineRequested = onCombineRequested || (() => {});
     this._onRegisterRequested = onRegisterRequested || (() => {});
     this._onMultisigConfigReady = onMultisigConfigReady || (() => {});
+    this._onWalletSaveRequested =
+      onWalletSaveRequested || (() => Promise.resolve());
+    this._onWalletListRequested =
+      onWalletListRequested || (() => Promise.resolve([]));
+    this._onWalletLoadRequested =
+      onWalletLoadRequested || (() => Promise.resolve(null));
+    this._onWalletDeleteRequested =
+      onWalletDeleteRequested || (() => Promise.resolve());
+    this._onMultisigSaveRequested =
+      onMultisigSaveRequested || (() => Promise.resolve());
+    this._onMultisigListRequested =
+      onMultisigListRequested || (() => Promise.resolve([]));
+    this._onMultisigLoadRequested =
+      onMultisigLoadRequested || (() => Promise.resolve(null));
+
+    // Refreshing the page starts a new device instance. Resolve both the
+    // seed wallet and registered multisig policy before the boot curtain
+    // hands control to the UI.
+    this.initialWallet = null;
+    this.initialMultisigWallet = null;
+    this.initialStorageReady = false;
+    Promise.allSettled([
+      Promise.resolve(this._onWalletListRequested()).then((wallets) =>
+        wallets.length ? this._onWalletLoadRequested(wallets[0]) : null,
+      ),
+      Promise.resolve(this._onMultisigListRequested()).then(
+        (multisigWallets) =>
+          multisigWallets.length
+            ? this._onMultisigLoadRequested(multisigWallets[0])
+            : null,
+      ),
+    ]).then(([walletResult, multisigResult]) => {
+      // One storage record must not prevent the other kind of wallet from
+      // being restored. A failed single-sig load still permits multisig use,
+      // and vice versa.
+      if (walletResult.status === "fulfilled") {
+        this.initialWallet = walletResult.value;
+      }
+      if (multisigResult.status === "fulfilled") {
+        this.initialMultisigWallet = multisigResult.value;
+        this.multisigWallet = multisigResult.value;
+      }
+      this.initialStorageReady = true;
+    });
+
     this.state = AppState.BOOT;
     this.bootProgress = 0; // 0..1, drives the boot progress bar
     this.walletCreationProgress = 0; // 0..1, drives the "creating wallet" curtain
-    this.menuIndex = 0; // currently highlighted menu row
 
     /** @type {import('./wallet-engine.js').Wallet|null} the device's current wallet; null only during BOOT */
     this.wallet = null;
@@ -189,18 +281,26 @@ export class DeviceStateMachine {
     this.passphraseChunks = []; // e.g. ['addict', '481920'] — always starts empty (see file header)
     this.passphraseNotice = null; // e.g. the "max parts reached" hint — cleared on next input
     this.wordPicker = null; // active only during PASSPHRASE_ADD_WORD
-    this.numberDraft = ''; // digits typed so far, active only during PASSPHRASE_ADD_NUMBERS
+    this.numberDraft = ""; // digits typed so far, active only during PASSPHRASE_ADD_NUMBERS
     this.pendingPassphraseWallet = null; // preview Wallet built by "Apply", not yet committed
 
     // --- Import Seed flow state (all cleared once committed or cancelled) ---
     this.importWords = []; // confirmed words so far, in order
+    this.importWordCount = null;
+    this.importLengthIndex = 0;
     this.importWordPicker = null; // WordPicker for whichever position is currently being entered
     this.importNotice = null; // e.g. 'invalid checksum' — cleared on next attempt
-    this.pendingImportWallet = null; // preview Wallet built once all 12 words check out
+    this.pendingImportWallet = null; // preview Wallet built once all selected words check out
 
     // --- Advanced/Tools submenu state ---
     this.advancedMenuIndex = 0;
     this.advancedNotice = null; // e.g. 'wallet exported' — cleared on next input
+
+    // --- Wallet storage state ---
+    this.walletStorageIndex = 0;
+    this.walletStorageNotice = null;
+    this.savedWallets = [];
+    this.savedWalletIndex = 0;
 
     // --- Address Explorer state ---
     this.addressTypeIndex = 0; // which of SCRIPT_TYPES is highlighted in the type menu
@@ -231,7 +331,7 @@ export class DeviceStateMachine {
 
   /** The full passphrase text used for derivation — chunks joined the same way the real device does. */
   get passphraseDraft() {
-    return this.passphraseChunks.join(' ');
+    return this.passphraseChunks.join(" ");
   }
 
   /**
@@ -242,14 +342,17 @@ export class DeviceStateMachine {
   tick() {
     if (this.state === AppState.BOOT) {
       this.bootProgress = Math.min(1, this.bootProgress + 0.018);
-      if (this.bootProgress >= 1) {
+      if (this.bootProgress >= 1 && this.initialStorageReady) {
         this._enterCreatingWallet();
       }
       return;
     }
 
     if (this.state === AppState.CREATING_WALLET) {
-      this.walletCreationProgress = Math.min(1, this.walletCreationProgress + 1 / WALLET_CREATION_FRAMES);
+      this.walletCreationProgress = Math.min(
+        1,
+        this.walletCreationProgress + 1 / WALLET_CREATION_FRAMES,
+      );
       if (this.walletCreationProgress >= 1) {
         this.state = AppState.WELCOME;
       }
@@ -257,9 +360,14 @@ export class DeviceStateMachine {
     }
 
     if (this.state === AppState.PSBT_LOADING) {
-      this.psbtLoadingProgress = Math.min(1, this.psbtLoadingProgress + 1 / PSBT_LOADING_FRAMES);
+      this.psbtLoadingProgress = Math.min(
+        1,
+        this.psbtLoadingProgress + 1 / PSBT_LOADING_FRAMES,
+      );
       if (this.psbtLoadingProgress >= 1) {
-        this.state = this.psbtError ? AppState.PSBT_ERROR : AppState.PSBT_REVIEW;
+        this.state = this.psbtError
+          ? AppState.PSBT_ERROR
+          : AppState.PSBT_REVIEW;
       }
     }
   }
@@ -271,7 +379,8 @@ export class DeviceStateMachine {
     // The derivation itself is instant (see wallet-engine.js) — the
     // curtain that follows is a deliberately honest presentation
     // delay, not a simulation of "gathering enough randomness".
-    this.wallet = new Wallet(generateNewMnemonic());
+    this.wallet = this.initialWallet || new Wallet(generateNewMnemonic());
+    this.initialWallet = null;
   }
 
   /**
@@ -297,12 +406,18 @@ export class DeviceStateMachine {
         return this._handlePassphraseAddNumbersKey(key);
       case AppState.PASSPHRASE_APPLY_PREVIEW:
         return this._handlePassphraseApplyPreviewKey(key);
+      case AppState.IMPORT_SEED_LENGTH:
+        return this._handleImportSeedLengthKey(key);
       case AppState.IMPORT_SEED_WORD:
         return this._handleImportSeedWordKey(key);
       case AppState.IMPORT_SEED_REVIEW:
         return this._handleImportSeedReviewKey(key);
       case AppState.ADVANCED_MENU:
         return this._handleAdvancedMenuKey(key);
+      case AppState.WALLET_STORAGE_MENU:
+        return this._handleWalletStorageMenuKey(key);
+      case AppState.WALLET_STORAGE_LOAD:
+        return this._handleWalletStorageLoadKey(key);
       case AppState.ADDRESS_TYPE_MENU:
         return this._handleAddressTypeMenuKey(key);
       case AppState.ADDRESS_VIEW:
@@ -329,7 +444,7 @@ export class DeviceStateMachine {
   }
 
   _handleWelcomeKey(key) {
-    if (key === 'ok') {
+    if (key === "ok") {
       this.state = AppState.MENU;
       this.menuIndex = 0;
     }
@@ -337,41 +452,48 @@ export class DeviceStateMachine {
 
   _handleMenuKey(key) {
     const count = this.menuItems.length;
-    if (key === '8') this.menuIndex = (this.menuIndex + 1) % count; // down
-    if (key === '5') this.menuIndex = (this.menuIndex - 1 + count) % count; // up
-    if (key === 'x') this.state = AppState.WELCOME; // back
+    if (key === "8") this.menuIndex = (this.menuIndex + 1) % count; // down
+    if (key === "5") this.menuIndex = (this.menuIndex - 1 + count) % count; // up
+    if (key === "x") this.state = AppState.WELCOME; // back
 
-    if (key === 'ok') {
+    if (key === "ok") {
       const selected = this.menuItems[this.menuIndex];
 
-      if (selected === 'New Seed Words') {
+      if (selected === "New Seed Words") {
         this._startNewSeedFlow();
         return;
       }
 
-      if (selected === 'Passphrase') {
+      if (selected === "Passphrase") {
         this._startPassphraseFlow();
         return;
       }
 
-      if (selected === 'Import Seed') {
+      if (selected === "Import Seed") {
         this._startImportSeedFlow();
         return;
       }
 
-      if (selected === 'Advanced/Tools') {
+      if (selected === "Advanced/Tools") {
         this.advancedMenuIndex = 0;
         this.advancedNotice = null;
         this.state = AppState.ADVANCED_MENU;
         return;
       }
 
-      if (selected === 'Address Explorer') {
+      if (selected === "Wallet Storage") {
+        this.walletStorageIndex = 0;
+        this.walletStorageNotice = null;
+        this.state = AppState.WALLET_STORAGE_MENU;
+        return;
+      }
+
+      if (selected === "Address Explorer") {
         this._startAddressExplorer();
         return;
       }
 
-      if (selected === 'Ready To Sign') {
+      if (selected === "Ready To Sign") {
         // The actual file picking is async and DOM-touching — see the
         // constructor's callbacks doc. This class stays in MENU until
         // handlePsbtFileLoaded() or handlePsbtLoadCancelled() is called.
@@ -379,7 +501,7 @@ export class DeviceStateMachine {
         return;
       }
 
-      if (selected === 'Settings') {
+      if (selected === "Settings") {
         this.settingsMenuIndex = 0;
         this.state = AppState.SETTINGS_MENU;
         return;
@@ -406,19 +528,24 @@ export class DeviceStateMachine {
   }
 
   _handleSeedDisplayKey(key) {
-    const words = this.pendingMnemonic.split(' ');
+    const words = this.pendingMnemonic.split(" ");
 
-    if (key === '8') this.seedScrollIndex = Math.min(this.seedScrollIndex + 1, words.length - 1);
-    if (key === '5') this.seedScrollIndex = Math.max(this.seedScrollIndex - 1, 0);
+    if (key === "8")
+      this.seedScrollIndex = Math.min(
+        this.seedScrollIndex + 1,
+        words.length - 1,
+      );
+    if (key === "5")
+      this.seedScrollIndex = Math.max(this.seedScrollIndex - 1, 0);
 
-    if (key === 'x') {
+    if (key === "x") {
       // Cancel — the CURRENT wallet is untouched, nothing was ever committed.
       this.pendingMnemonic = null;
       this.state = AppState.MENU;
       return;
     }
 
-    if (key === 'ok') {
+    if (key === "ok") {
       this.quiz = buildSeedQuiz(words);
       this.quizIndex = 0;
       this.quizNotice = null;
@@ -427,7 +554,7 @@ export class DeviceStateMachine {
   }
 
   _handleSeedQuizKey(key) {
-    if (key === 'x') {
+    if (key === "x") {
       // Cancel the whole flow, back to the menu, current wallet untouched.
       this.pendingMnemonic = null;
       this.quiz = null;
@@ -435,16 +562,17 @@ export class DeviceStateMachine {
       return;
     }
 
-    const choiceIndex = { '1': 0, '2': 1, '3': 2 }[key];
+    const choiceIndex = { 1: 0, 2: 1, 3: 2 }[key];
     if (choiceIndex === undefined) return;
 
     const question = this.quiz[this.quizIndex];
-    const answeredCorrectly = question.choices[choiceIndex] === question.correctWord;
+    const answeredCorrectly =
+      question.choices[choiceIndex] === question.correctWord;
 
     if (!answeredCorrectly) {
       // Wrong answer: don't reveal which one was right — send them back
-      // to re-read all 12 words from the start, same as a real backup check.
-      this.quizNotice = 'incorrect — review your words again';
+      // to re-read all words from the start, same as a real backup check.
+      this.quizNotice = "incorrect — review your words again";
       this.seedScrollIndex = 0;
       this.state = AppState.SEED_DISPLAY;
       return;
@@ -475,22 +603,24 @@ export class DeviceStateMachine {
 
   _handlePassphraseMenuKey(key) {
     const count = PASSPHRASE_MENU_ITEMS.length;
-    if (key === '8') this.passphraseMenuIndex = (this.passphraseMenuIndex + 1) % count;
-    if (key === '5') this.passphraseMenuIndex = (this.passphraseMenuIndex - 1 + count) % count;
+    if (key === "8")
+      this.passphraseMenuIndex = (this.passphraseMenuIndex + 1) % count;
+    if (key === "5")
+      this.passphraseMenuIndex = (this.passphraseMenuIndex - 1 + count) % count;
 
-    if (key === 'x') {
+    if (key === "x") {
       // Cancel the whole passphrase flow — current wallet untouched.
       this._resetPassphraseDraftState();
       this.state = AppState.MENU;
       return;
     }
 
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     this.passphraseNotice = null; // clear any previous notice before acting on this press
 
     switch (PASSPHRASE_MENU_ITEMS[this.passphraseMenuIndex]) {
-      case 'Add Word':
+      case "Add Word":
         if (this.passphraseChunks.length >= MAX_PASSPHRASE_CHUNKS) {
           this.passphraseNotice = `max ${MAX_PASSPHRASE_CHUNKS} parts — Clear All to redo`;
           break;
@@ -498,24 +628,27 @@ export class DeviceStateMachine {
         this.wordPicker = new WordPicker(wordlist);
         this.state = AppState.PASSPHRASE_ADD_WORD;
         break;
-      case 'Add Numbers':
+      case "Add Numbers":
         if (this.passphraseChunks.length >= MAX_PASSPHRASE_CHUNKS) {
           this.passphraseNotice = `max ${MAX_PASSPHRASE_CHUNKS} parts — Clear All to redo`;
           break;
         }
-        this.numberDraft = '';
+        this.numberDraft = "";
         this.state = AppState.PASSPHRASE_ADD_NUMBERS;
         break;
-      case 'Clear All':
+      case "Clear All":
         this.passphraseChunks = [];
         break;
-      case 'Apply':
+      case "Apply":
         // Preview only — nothing is committed until the user
         // confirms on the preview screen.
-        this.pendingPassphraseWallet = new Wallet(this.wallet.mnemonic, this.passphraseDraft);
+        this.pendingPassphraseWallet = new Wallet(
+          this.wallet.mnemonic,
+          this.passphraseDraft,
+        );
         this.state = AppState.PASSPHRASE_APPLY_PREVIEW;
         break;
-      case 'Cancel':
+      case "Cancel":
         this._resetPassphraseDraftState();
         this.state = AppState.MENU;
         break;
@@ -523,18 +656,18 @@ export class DeviceStateMachine {
   }
 
   _handlePassphraseAddWordKey(key) {
-    if (key === '8') this.wordPicker.stepNext();
-    if (key === '5') this.wordPicker.stepPrev();
-    if (key === '9') this.wordPicker.pageNext();
-    if (key === '7') this.wordPicker.pagePrev();
+    if (key === "8") this.wordPicker.stepNext();
+    if (key === "5") this.wordPicker.stepPrev();
+    if (key === "9") this.wordPicker.pageNext();
+    if (key === "7") this.wordPicker.pagePrev();
 
-    if (key === 'x') {
+    if (key === "x") {
       this.wordPicker = null;
       this.state = AppState.PASSPHRASE_MENU;
       return;
     }
 
-    if (key === 'ok') {
+    if (key === "ok") {
       this._addPassphraseChunk(this.wordPicker.currentWord);
       this.wordPicker = null;
       this.state = AppState.PASSPHRASE_MENU;
@@ -547,7 +680,7 @@ export class DeviceStateMachine {
       return;
     }
 
-    if (key === 'x') {
+    if (key === "x") {
       if (this.numberDraft.length > 0) {
         this.numberDraft = this.numberDraft.slice(0, -1); // backspace
       } else {
@@ -556,15 +689,15 @@ export class DeviceStateMachine {
       return;
     }
 
-    if (key === 'ok' && this.numberDraft.length > 0) {
+    if (key === "ok" && this.numberDraft.length > 0) {
       this._addPassphraseChunk(this.numberDraft);
-      this.numberDraft = '';
+      this.numberDraft = "";
       this.state = AppState.PASSPHRASE_MENU;
     }
   }
 
   _handlePassphraseApplyPreviewKey(key) {
-    if (key === 'ok') {
+    if (key === "ok") {
       // COMMIT: this replaces the device's current wallet. Same 12
       // words as before, completely different fingerprint/keys.
       this.wallet = this.pendingPassphraseWallet;
@@ -573,7 +706,7 @@ export class DeviceStateMachine {
       return;
     }
 
-    if (key === 'x') {
+    if (key === "x") {
       // Back to editing — the draft text is kept, only the preview is discarded.
       this.pendingPassphraseWallet = null;
       this.state = AppState.PASSPHRASE_MENU;
@@ -590,7 +723,7 @@ export class DeviceStateMachine {
     this.passphraseChunks = [];
     this.passphraseNotice = null;
     this.wordPicker = null;
-    this.numberDraft = '';
+    this.numberDraft = "";
     this.pendingPassphraseWallet = null;
   }
 
@@ -599,24 +732,46 @@ export class DeviceStateMachine {
   // ============================================================
   // Reuses WordPicker (core/word-picker.js) — the exact same
   // wordlist-navigation mechanic as the passphrase's "Add Word"
-  // mode, just run 12 times in a row to rebuild an existing
+  // mode, just run once per selected word count to rebuild an existing
   // mnemonic instead of building one passphrase chunk.
 
-  /** Starts entry at word 1 of 12, with nothing confirmed yet. */
+  /** Opens the real device's 12/18/24-word length selection. */
   _startImportSeedFlow() {
-    this.importWords = [];
+    this.importLengthIndex = 0;
     this.importNotice = null;
-    this.importWordPicker = new WordPicker(wordlist);
-    this.state = AppState.IMPORT_SEED_WORD;
+    this.state = AppState.IMPORT_SEED_LENGTH;
+  }
+
+  _handleImportSeedLengthKey(key) {
+    if (key === "8") {
+      this.importLengthIndex =
+        (this.importLengthIndex + 1) % IMPORT_WORD_COUNTS.length;
+    }
+    if (key === "5") {
+      this.importLengthIndex =
+        (this.importLengthIndex - 1 + IMPORT_WORD_COUNTS.length) %
+        IMPORT_WORD_COUNTS.length;
+    }
+    if (key === "x") {
+      this.state = AppState.MENU;
+      return;
+    }
+    if (key === "ok") {
+      this.importWordCount = IMPORT_WORD_COUNTS[this.importLengthIndex];
+      this.importWords = [];
+      this.importNotice = null;
+      this.importWordPicker = new WordPicker(wordlist);
+      this.state = AppState.IMPORT_SEED_WORD;
+    }
   }
 
   _handleImportSeedWordKey(key) {
-    if (key === '8') this.importWordPicker.stepNext();
-    if (key === '5') this.importWordPicker.stepPrev();
-    if (key === '9') this.importWordPicker.pageNext();
-    if (key === '7') this.importWordPicker.pagePrev();
+    if (key === "8") this.importWordPicker.stepNext();
+    if (key === "5") this.importWordPicker.stepPrev();
+    if (key === "9") this.importWordPicker.pageNext();
+    if (key === "7") this.importWordPicker.pagePrev();
 
-    if (key === 'x') {
+    if (key === "x") {
       if (this.importWords.length === 0) {
         // Nothing confirmed yet — cancel the whole flow, current wallet untouched.
         this._resetImportSeedState();
@@ -631,17 +786,17 @@ export class DeviceStateMachine {
       return;
     }
 
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     this.importWords.push(this.importWordPicker.currentWord);
 
-    if (this.importWords.length < IMPORT_WORD_COUNT) {
+    if (this.importWords.length < this.importWordCount) {
       this.importWordPicker = new WordPicker(wordlist);
       return;
     }
 
-    // All 12 words entered — validate the checksum before showing any preview.
-    const candidate = this.importWords.join(' ');
+    // All selected words entered — validate the checksum before showing any preview.
+    const candidate = this.importWords.join(" ");
     if (isValidMnemonic(candidate)) {
       this.pendingImportWallet = new Wallet(candidate);
       this.importNotice = null;
@@ -649,22 +804,27 @@ export class DeviceStateMachine {
     } else {
       // Don't guess which word is wrong — just reopen the last slot
       // for correction, same "back up one step" motion as pressing X.
-      this.importNotice = 'invalid checksum — check your last word';
+      this.importNotice = "invalid checksum — check your last word";
       this.importWords.pop();
       this.importWordPicker = new WordPicker(wordlist);
     }
   }
 
   _handleImportSeedReviewKey(key) {
-    if (key === 'ok') {
+    if (key === "ok") {
       // COMMIT: this replaces the device's current wallet.
       this.wallet = this.pendingImportWallet;
+      // An imported seed is already confirmed at this point, so persist it
+      // immediately instead of requiring a second save action.
+      Promise.resolve(this._onWalletSaveRequested(this.wallet)).catch(() => {
+        this.walletStorageNotice = "wallet imported, but could not be saved";
+      });
       this._resetImportSeedState();
       this.state = AppState.MENU;
       return;
     }
 
-    if (key === 'x') {
+    if (key === "x") {
       // Back to re-editing word 12 — words 1-11 are kept as entered.
       const previousWord = this.importWords.pop();
       this.importWordPicker = this._wordPickerAt(previousWord);
@@ -684,6 +844,8 @@ export class DeviceStateMachine {
 
   _resetImportSeedState() {
     this.importWords = [];
+    this.importWordCount = null;
+    this.importLengthIndex = 0;
     this.importWordPicker = null;
     this.importNotice = null;
     this.pendingImportWallet = null;
@@ -695,30 +857,142 @@ export class DeviceStateMachine {
 
   _handleAdvancedMenuKey(key) {
     const count = ADVANCED_MENU_ITEMS.length;
-    if (key === '8') this.advancedMenuIndex = (this.advancedMenuIndex + 1) % count;
-    if (key === '5') this.advancedMenuIndex = (this.advancedMenuIndex - 1 + count) % count;
-    if (key === 'x') {
+    if (key === "8")
+      this.advancedMenuIndex = (this.advancedMenuIndex + 1) % count;
+    if (key === "5")
+      this.advancedMenuIndex = (this.advancedMenuIndex - 1 + count) % count;
+    if (key === "x") {
       this.advancedNotice = null;
       this.state = AppState.MENU;
       return;
     }
 
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     this.advancedNotice = null; // clear any previous notice before acting on this press
 
     switch (ADVANCED_MENU_ITEMS[this.advancedMenuIndex]) {
-      case 'Export Wallet':
+      case "Export Wallet":
         // The actual file download happens outside this class — see
         // the constructor's callbacks doc. This class only decides
         // WHEN to ask for it and shows a brief on-screen confirmation.
         this._onExportRequested(this.wallet);
-        this.advancedNotice = 'exported coldcard-export.json';
+        this.advancedNotice = "exported coldcard-export.json";
         break;
-      case 'Back':
+      case "Back":
         this.state = AppState.MENU;
         break;
     }
+  }
+
+  // ============================================================
+  // Wallet storage
+  // ============================================================
+
+  _handleWalletStorageMenuKey(key) {
+    const count = WALLET_STORAGE_ITEMS.length;
+    if (key === "8")
+      this.walletStorageIndex = (this.walletStorageIndex + 1) % count;
+    if (key === "5")
+      this.walletStorageIndex = (this.walletStorageIndex - 1 + count) % count;
+    if (key === "x") {
+      this.walletStorageNotice = null;
+      this.state = AppState.MENU;
+      return;
+    }
+    if (key !== "ok") return;
+
+    this.walletStorageNotice = null;
+    switch (WALLET_STORAGE_ITEMS[this.walletStorageIndex]) {
+      case "Save Current Wallet":
+        this._onWalletSaveRequested(this.wallet)
+          .then(() => {
+            this.walletStorageNotice = `saved wallet ${this.wallet.fingerprint}`;
+          })
+          .catch(() => {
+            this.walletStorageNotice = "could not save wallet";
+          });
+        break;
+      case "Load Saved Wallet":
+        this.walletStorageNotice = "loading saved wallets...";
+        this._onWalletListRequested()
+          .then((wallets) => {
+            this.savedWallets = wallets;
+            this.savedWalletIndex = 0;
+            this.walletStorageNotice = wallets.length
+              ? null
+              : "no saved wallets";
+            if (wallets.length) this.state = AppState.WALLET_STORAGE_LOAD;
+          })
+          .catch(() => {
+            this.walletStorageNotice = "could not read wallet database";
+          });
+        break;
+      case "Delete Saved Wallet":
+        this.walletStorageNotice = "choose a wallet to delete";
+        this._onWalletListRequested()
+          .then((wallets) => {
+            this.savedWallets = wallets;
+            this.savedWalletIndex = 0;
+            if (wallets.length) this.state = AppState.WALLET_STORAGE_LOAD;
+            else this.walletStorageNotice = "no saved wallets";
+          })
+          .catch(() => {
+            this.walletStorageNotice = "could not read wallet database";
+          });
+        break;
+      case "Back":
+        this.state = AppState.MENU;
+        break;
+    }
+  }
+
+  _handleWalletStorageLoadKey(key) {
+    const count = this.savedWallets.length;
+    if (!count) {
+      this.state = AppState.WALLET_STORAGE_MENU;
+      return;
+    }
+    if (key === "8")
+      this.savedWalletIndex = (this.savedWalletIndex + 1) % count;
+    if (key === "5")
+      this.savedWalletIndex = (this.savedWalletIndex - 1 + count) % count;
+    if (key === "x") {
+      this.state = AppState.WALLET_STORAGE_MENU;
+      return;
+    }
+    if (key !== "ok") return;
+
+    const record = this.savedWallets[this.savedWalletIndex];
+    const action = WALLET_STORAGE_ITEMS[this.walletStorageIndex];
+    if (action === "Delete Saved Wallet") {
+      this.walletStorageNotice = "deleting...";
+      this._onWalletDeleteRequested(record.id)
+        .then(() => {
+          this.savedWallets.splice(this.savedWalletIndex, 1);
+          this.savedWalletIndex = Math.min(
+            this.savedWalletIndex,
+            this.savedWallets.length - 1,
+          );
+          this.walletStorageNotice = "wallet deleted";
+          this.state = AppState.WALLET_STORAGE_MENU;
+        })
+        .catch(() => {
+          this.walletStorageNotice = "could not delete wallet";
+        });
+      return;
+    }
+
+    this.walletStorageNotice = "loading wallet...";
+    this._onWalletLoadRequested(record)
+      .then((wallet) => {
+        this.wallet = wallet;
+        this.walletStorageNotice = `loaded wallet ${wallet.fingerprint}`;
+        this.state = AppState.WALLET_STORAGE_MENU;
+      })
+      .catch(() => {
+        this.walletStorageNotice = "could not load wallet";
+      });
   }
 
   // ============================================================
@@ -728,20 +1002,24 @@ export class DeviceStateMachine {
   /** Precomputes each type's first receive address, for the safety-comparison screen. */
   _startAddressExplorer() {
     this.addressTypeIndex = 0;
-    this.firstAddresses = SCRIPT_TYPES.map((scriptType) => deriveAddress(this.wallet, scriptType.id, 0, 0).address);
+    this.firstAddresses = SCRIPT_TYPES.map(
+      (scriptType) => deriveAddress(this.wallet, scriptType.id, 0, 0).address,
+    );
     this.state = AppState.ADDRESS_TYPE_MENU;
   }
 
   _handleAddressTypeMenuKey(key) {
     const count = SCRIPT_TYPES.length;
-    if (key === '8') this.addressTypeIndex = (this.addressTypeIndex + 1) % count;
-    if (key === '5') this.addressTypeIndex = (this.addressTypeIndex - 1 + count) % count;
-    if (key === 'x') {
+    if (key === "8")
+      this.addressTypeIndex = (this.addressTypeIndex + 1) % count;
+    if (key === "5")
+      this.addressTypeIndex = (this.addressTypeIndex - 1 + count) % count;
+    if (key === "x") {
       this.state = AppState.MENU;
       return;
     }
 
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     this.addressScriptType = SCRIPT_TYPES[this.addressTypeIndex].id;
     this.addressChain = 0;
@@ -751,17 +1029,17 @@ export class DeviceStateMachine {
   }
 
   _handleAddressViewKey(key) {
-    if (key === '8') {
+    if (key === "8") {
       this.addressIndex += 1;
       this._refreshAddressView();
       return;
     }
-    if (key === '5') {
+    if (key === "5") {
       this.addressIndex = Math.max(0, this.addressIndex - 1);
       this._refreshAddressView();
       return;
     }
-    if (key === '0') {
+    if (key === "0") {
       // Matches the real device's own convention: press 0 to toggle
       // between the receive (external) and change (internal) chain.
       this.addressChain = this.addressChain === 0 ? 1 : 0;
@@ -769,14 +1047,19 @@ export class DeviceStateMachine {
       this._refreshAddressView();
       return;
     }
-    if (key === 'x') {
+    if (key === "x") {
       this.state = AppState.ADDRESS_TYPE_MENU;
     }
   }
 
   /** Recomputes currentAddress/currentAddressPath — called on any navigation, never from the render loop. */
   _refreshAddressView() {
-    const { address, path } = deriveAddress(this.wallet, this.addressScriptType, this.addressChain, this.addressIndex);
+    const { address, path } = deriveAddress(
+      this.wallet,
+      this.addressScriptType,
+      this.addressChain,
+      this.addressIndex,
+    );
     this.currentAddress = address;
     this.currentAddressPath = path;
   }
@@ -804,11 +1087,15 @@ export class DeviceStateMachine {
       // PSBT as multisig (change detection needs every cosigner's
       // agreement, not just this device's own key) — see
       // psbt-signer.js's buildReviewSummary for the distinction.
-      this.psbtSummary = buildReviewSummary(this.wallet, this.psbtTransaction, this.multisigWallet);
+      this.psbtSummary = buildReviewSummary(
+        this.wallet,
+        this.psbtTransaction,
+        this.multisigWallet,
+      );
     } catch (err) {
       this.psbtTransaction = null;
       this.psbtSummary = null;
-      this.psbtError = 'Could not read this file as a valid PSBT.';
+      this.psbtError = "Could not read this file as a valid PSBT.";
     }
 
     this.state = AppState.PSBT_LOADING;
@@ -822,17 +1109,18 @@ export class DeviceStateMachine {
   }
 
   _handlePsbtReviewKey(key) {
-    if (key === 'x') {
+    if (key === "x") {
       this._resetPsbtState();
       this.state = AppState.MENU;
       return;
     }
 
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     const signedCount = signRecognizedInputs(this.wallet, this.psbtTransaction);
     if (signedCount === 0) {
-      this.psbtError = 'None of these inputs belong to this wallet — nothing to sign.';
+      this.psbtError =
+        "None of these inputs belong to this wallet — nothing to sign.";
       this.state = AppState.PSBT_ERROR;
       return;
     }
@@ -852,14 +1140,14 @@ export class DeviceStateMachine {
   }
 
   _handlePsbtSignedKey(key) {
-    if (key === 'ok' || key === 'x') {
+    if (key === "ok" || key === "x") {
       this._resetPsbtState();
       this.state = AppState.MENU;
     }
   }
 
   _handlePsbtErrorKey(key) {
-    if (key === 'ok' || key === 'x') {
+    if (key === "ok" || key === "x") {
       this._resetPsbtState();
       this.state = AppState.MENU;
     }
@@ -880,21 +1168,23 @@ export class DeviceStateMachine {
 
   _handleSettingsMenuKey(key) {
     const count = SETTINGS_MENU_ITEMS.length;
-    if (key === '8') this.settingsMenuIndex = (this.settingsMenuIndex + 1) % count;
-    if (key === '5') this.settingsMenuIndex = (this.settingsMenuIndex - 1 + count) % count;
-    if (key === 'x') {
+    if (key === "8")
+      this.settingsMenuIndex = (this.settingsMenuIndex + 1) % count;
+    if (key === "5")
+      this.settingsMenuIndex = (this.settingsMenuIndex - 1 + count) % count;
+    if (key === "x") {
       this.state = AppState.MENU;
       return;
     }
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     switch (SETTINGS_MENU_ITEMS[this.settingsMenuIndex]) {
-      case 'Multisig Wallets':
+      case "Multisig Wallets":
         this.multisigMenuIndex = 0;
         this.multisigNotice = null;
         this.state = AppState.MULTISIG_MENU;
         break;
-      case 'Back':
+      case "Back":
         this.state = AppState.MENU;
         break;
     }
@@ -902,39 +1192,44 @@ export class DeviceStateMachine {
 
   _handleMultisigMenuKey(key) {
     const count = MULTISIG_MENU_ITEMS.length;
-    if (key === '8') this.multisigMenuIndex = (this.multisigMenuIndex + 1) % count;
-    if (key === '5') this.multisigMenuIndex = (this.multisigMenuIndex - 1 + count) % count;
-    if (key === 'x') {
+    if (key === "8")
+      this.multisigMenuIndex = (this.multisigMenuIndex + 1) % count;
+    if (key === "5")
+      this.multisigMenuIndex = (this.multisigMenuIndex - 1 + count) % count;
+    if (key === "x") {
       this.state = AppState.SETTINGS_MENU;
       return;
     }
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     this.multisigNotice = null;
 
     switch (MULTISIG_MENU_ITEMS[this.multisigMenuIndex]) {
-      case 'Export XPUB':
+      case "Export XPUB":
         this._onExportCosignerRequested(this.wallet);
         this.multisigNotice = `exported ${cosignerExportFilename(this.wallet)}`;
         break;
-      case 'Create Multisig Wallet':
+      case "Create Multisig Wallet":
         // Async, DOM-touching — see constructor callbacks doc. Stays
         // in MULTISIG_MENU until handleCosignerFileLoaded() is called.
         this._onCombineRequested();
         break;
-      case 'Import from SD':
+      case "Import from SD":
         // Same pattern — see handleRegisterFileLoaded().
         this._onRegisterRequested();
         break;
-      case 'View Registered Wallet':
+      case "View Registered Wallet":
         if (this.multisigWallet) {
-          this.multisigFirstAddress = this.multisigWallet.deriveAddress(0, 0).address;
+          this.multisigFirstAddress = this.multisigWallet.deriveAddress(
+            0,
+            0,
+          ).address;
           this.state = AppState.MULTISIG_INFO;
         } else {
-          this.multisigNotice = 'no multisig wallet registered yet';
+          this.multisigNotice = "no multisig wallet registered yet";
         }
         break;
-      case 'Back':
+      case "Back":
         this.state = AppState.SETTINGS_MENU;
         break;
     }
@@ -949,16 +1244,31 @@ export class DeviceStateMachine {
    */
   handleCosignerFileLoaded(otherCosignerJsonText) {
     try {
-      const otherCosigner = cosignerFromExportJson(JSON.parse(otherCosignerJsonText));
-      const ownCosigner = cosignerFromExportJson(buildCosignerExport(this.wallet));
+      const otherCosigner = cosignerFromExportJson(
+        JSON.parse(otherCosignerJsonText),
+      );
+      const ownCosigner = cosignerFromExportJson(
+        buildCosignerExport(this.wallet),
+      );
 
       if (otherCosigner.fingerprint === ownCosigner.fingerprint) {
-        throw new Error('That file has the same fingerprint as this device — a multisig wallet needs 2 distinct cosigners.');
+        throw new Error(
+          "That file has the same fingerprint as this device — a multisig wallet needs 2 distinct cosigners.",
+        );
       }
 
       const cosigners = [ownCosigner, otherCosigner];
-      const configText = buildMultisigConfigText(MULTISIG_NAME, MULTISIG_M, cosigners);
-      this.pendingMultisigConfig = { configText, name: MULTISIG_NAME, m: MULTISIG_M, cosigners };
+      const configText = buildMultisigConfigText(
+        MULTISIG_NAME,
+        MULTISIG_M,
+        cosigners,
+      );
+      this.pendingMultisigConfig = {
+        configText,
+        name: MULTISIG_NAME,
+        m: MULTISIG_M,
+        cosigners,
+      };
       this.multisigError = null;
       this.state = AppState.MULTISIG_CREATE_REVIEW;
     } catch (err) {
@@ -973,17 +1283,22 @@ export class DeviceStateMachine {
   }
 
   _handleMultisigCreateReviewKey(key) {
-    if (key === 'x') {
+    if (key === "x") {
       this.pendingMultisigConfig = null;
       this.state = AppState.MULTISIG_MENU;
       return;
     }
-    if (key !== 'ok') return;
+    if (key !== "ok") return;
 
     const { configText, name, m, cosigners } = this.pendingMultisigConfig;
     this.multisigWallet = new MultisigWallet({ name, m, cosigners });
     this._onMultisigConfigReady(`${name}.txt`, configText);
-    this.multisigNotice = 'multisig wallet created and registered';
+    Promise.resolve(this._onMultisigSaveRequested(this.multisigWallet)).catch(
+      () => {
+        this.multisigNotice = "multisig wallet created, but could not be saved";
+      },
+    );
+    this.multisigNotice = "multisig wallet created and registered";
     this.pendingMultisigConfig = null;
     this.state = AppState.MULTISIG_MENU;
   }
@@ -997,10 +1312,18 @@ export class DeviceStateMachine {
    */
   handleRegisterFileLoaded(configText) {
     try {
-      const ownCosigner = cosignerFromExportJson(buildCosignerExport(this.wallet));
+      const ownCosigner = cosignerFromExportJson(
+        buildCosignerExport(this.wallet),
+      );
       this.multisigWallet = parseMultisigConfigText(configText, ownCosigner);
+      Promise.resolve(this._onMultisigSaveRequested(this.multisigWallet)).catch(
+        () => {
+          this.multisigNotice =
+            "multisig wallet registered, but could not be saved";
+        },
+      );
       this.multisigError = null;
-      this.multisigNotice = 'multisig wallet registered';
+      this.multisigNotice = "multisig wallet registered";
       this.state = AppState.MULTISIG_MENU;
     } catch (err) {
       this.multisigError = err.message;
@@ -1014,13 +1337,13 @@ export class DeviceStateMachine {
   }
 
   _handleMultisigInfoKey(key) {
-    if (key === 'ok' || key === 'x') {
+    if (key === "ok" || key === "x") {
       this.state = AppState.MULTISIG_MENU;
     }
   }
 
   _handleMultisigErrorKey(key) {
-    if (key === 'ok' || key === 'x') {
+    if (key === "ok" || key === "x") {
       this.multisigError = null;
       this.state = AppState.MULTISIG_MENU;
     }

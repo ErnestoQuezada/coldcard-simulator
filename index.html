@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Coldcard Web Simulator — Mk5</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Coldcard Web Simulator — Mk5</title>
 
-  <!--
+    <!--
     Stylesheets are split by responsibility:
       variables.css -> color tokens for every theme (single source of truth)
       base.css      -> page-level reset/layout, not device-specific
@@ -15,119 +15,137 @@
       keypad.css    -> keypad grid, keys, arrows, cancel/confirm colors
       swatches.css  -> the color-theme picker row
   -->
-  <link rel="stylesheet" href="css/variables.css" />
-  <link rel="stylesheet" href="css/base.css" />
-  <link rel="stylesheet" href="css/workspace.css" />
-  <link rel="stylesheet" href="css/device.css" />
-  <link rel="stylesheet" href="css/screen.css" />
-  <link rel="stylesheet" href="css/keypad.css" />
-  <link rel="stylesheet" href="css/swatches.css" />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/workspace.css" />
+    <link rel="stylesheet" href="css/device.css" />
+    <link rel="stylesheet" href="css/screen.css" />
+    <link rel="stylesheet" href="css/keypad.css" />
+    <link rel="stylesheet" href="css/swatches.css" />
 
-  <!--
+    <!--
     Import map: lets js/core/wallet-engine.js write normal npm-style
     imports (e.g. `from '@scure/bip39'`) while the browser resolves them
     to the vendored local copies below — no CDN, no bundler, no network
     dependency at runtime. See vendor/README.md for what's in there and
     why it's vendored instead of imported from a CDN.
   -->
-  <script type="importmap">
-    {
-      "imports": {
-        "@scure/bip39": "./vendor/@scure/bip39/index.js",
-        "@scure/bip39/wordlists/english.js": "./vendor/@scure/bip39/wordlists/english.js",
-        "@scure/bip32": "./vendor/@scure/bip32/index.js",
-        "@scure/base": "./vendor/@scure/base/index.js",
-        "@scure/btc-signer": "./vendor/@scure/btc-signer/index.js",
-        "@scure/btc-signer/": "./vendor/@scure/btc-signer/",
-        "micro-packed": "./vendor/micro-packed/index.js",
-        "@noble/hashes/": "./vendor/@noble/hashes/",
-        "@noble/curves/": "./vendor/@noble/curves/"
+    <script type="importmap">
+      {
+        "imports": {
+          "@scure/bip39": "./vendor/@scure/bip39/index.js",
+          "@scure/bip39/wordlists/english.js": "./vendor/@scure/bip39/wordlists/english.js",
+          "@scure/bip32": "./vendor/@scure/bip32/index.js",
+          "@scure/base": "./vendor/@scure/base/index.js",
+          "@scure/btc-signer": "./vendor/@scure/btc-signer/index.js",
+          "@scure/btc-signer/": "./vendor/@scure/btc-signer/",
+          "micro-packed": "./vendor/micro-packed/index.js",
+          "@noble/hashes/": "./vendor/@noble/hashes/",
+          "@noble/curves/": "./vendor/@noble/curves/"
+        }
       }
-    }
-  </script>
-</head>
-<body>
-
-  <div class="stage">
-
-    <!--
+    </script>
+  </head>
+  <body>
+    <div class="stage">
+      <!--
       Reusable device markup. Workspace clones this <template> once per
       Coldcard instance (js/core/workspace.js). Nothing in here has an
       `id` attribute — with 2 live devices on the page at once, duplicate
       IDs would be invalid HTML and would break getElementById lookups.
       Every element is instead found by class, scoped to the cloned root.
     -->
-    <template id="device-template">
-      <div class="device-slot">
-        <div class="device-slot-header">
-          <span class="device-label"></span>
-          <button class="device-remove-btn" type="button" title="Remove this Coldcard" aria-label="Remove this Coldcard">✕</button>
-        </div>
+      <template id="device-template">
+        <div class="device-slot">
+          <div class="device-slot-header">
+            <span class="device-label"></span>
+            <button
+              class="device-remove-btn"
+              type="button"
+              title="Remove this Coldcard"
+              aria-label="Remove this Coldcard"
+            >
+              ✕
+            </button>
+          </div>
 
-        <!-- data-theme is the single attribute that switches the whole
+          <!-- data-theme is the single attribute that switches the whole
              colorway; see css/variables.css and js/ui/theme-picker.js -->
-        <div class="device" data-theme="orange">
+          <div class="device" data-theme="orange">
+            <div class="top-panel">
+              <div class="top-row">
+                <div class="brand-left"><span class="logo">CC</span></div>
+                <div class="led"></div>
+                <div class="brand-right">Mk5</div>
+              </div>
 
-          <div class="top-panel">
-            <div class="top-row">
-              <div class="brand-left"><span class="logo">CC</span></div>
-              <div class="led"></div>
-              <div class="brand-right">Mk5</div>
+              <div class="screen-frame">
+                <canvas class="screen-canvas" width="560" height="250"></canvas>
+              </div>
+
+              <div class="frame-dots"><span></span><span></span></div>
             </div>
 
-            <div class="screen-frame">
-              <canvas class="screen-canvas" width="560" height="250"></canvas>
+            <div class="keypad">
+              <!-- Decorative side grip-ridges, aligned with rows 1 and 3 -->
+              <div class="grip-tab left-r1"></div>
+              <div class="grip-tab right-r1"></div>
+              <div class="grip-tab left-r3"></div>
+              <div class="grip-tab right-r3"></div>
+
+              <button class="key" data-key="1">1</button>
+              <button class="key" data-key="2">2</button>
+              <button class="key" data-key="3">3</button>
+
+              <button class="key" data-key="4">4</button>
+              <button class="key" data-key="5">
+                5<span class="arrow up">▲</span>
+              </button>
+              <button class="key" data-key="6">6</button>
+
+              <button class="key" data-key="7">
+                7<span class="arrow left">◀</span>
+              </button>
+              <button class="key" data-key="8">
+                8<span class="arrow down">▼</span>
+              </button>
+              <button class="key" data-key="9">
+                9<span class="arrow right">▶</span>
+              </button>
+
+              <button class="key cancel" data-key="x">✕</button>
+              <button class="key" data-key="0">0</button>
+              <button class="key confirm" data-key="ok">✓</button>
             </div>
 
-            <div class="frame-dots"><span></span><span></span></div>
+            <div class="footer-mark">SIMULATOR · NOT A REAL DEVICE</div>
           </div>
 
-          <div class="keypad">
-            <!-- Decorative side grip-ridges, aligned with rows 1 and 3 -->
-            <div class="grip-tab left-r1"></div>
-            <div class="grip-tab right-r1"></div>
-            <div class="grip-tab left-r3"></div>
-            <div class="grip-tab right-r3"></div>
-
-            <button class="key" data-key="1">1</button>
-            <button class="key" data-key="2">2</button>
-            <button class="key" data-key="3">3</button>
-
-            <button class="key" data-key="4">4</button>
-            <button class="key" data-key="5">5<span class="arrow up">▲</span></button>
-            <button class="key" data-key="6">6</button>
-
-            <button class="key" data-key="7">7<span class="arrow left">◀</span></button>
-            <button class="key" data-key="8">8<span class="arrow down">▼</span></button>
-            <button class="key" data-key="9">9<span class="arrow right">▶</span></button>
-
-            <button class="key cancel" data-key="x">✕</button>
-            <button class="key" data-key="0">0</button>
-            <button class="key confirm" data-key="ok">✓</button>
-          </div>
-
-          <div class="footer-mark">SIMULATOR · NOT A REAL DEVICE</div>
+          <div class="swatches"></div>
         </div>
+      </template>
 
-        <div class="swatches"></div>
+      <!-- Workspace: holds 1-2 live device instances, built by js/core/workspace.js -->
+      <div class="workspace" id="workspace"></div>
+
+      <button class="add-device-btn" id="add-device-btn" type="button">
+        + Add second Coldcard
+      </button>
+
+      <div class="hint">
+        Click a device to make it active — the <b>laptop keyboard</b> always
+        controls whichever device is active, since there's only one physical
+        keyboard for up to two devices.<br />
+        <b>Enter</b> = ✓&nbsp;&nbsp;<b>Esc/Backspace</b> = ✕&nbsp;&nbsp;<b
+          >Arrows</b
+        >
+        = navigate
       </div>
-    </template>
-
-    <!-- Workspace: holds 1-2 live device instances, built by js/core/workspace.js -->
-    <div class="workspace" id="workspace"></div>
-
-    <button class="add-device-btn" id="add-device-btn" type="button">+ Add second Coldcard</button>
-
-    <div class="hint">
-      Click a device to make it active — the <b>laptop keyboard</b> always controls whichever
-      device is active, since there's only one physical keyboard for up to two devices.<br />
-      <b>Enter</b> = ✓&nbsp;&nbsp;<b>Esc/Backspace</b> = ✕&nbsp;&nbsp;<b>Arrows</b> = navigate
     </div>
-  </div>
 
-  <!-- type="module" enables ES import/export across js/*.js.
+    <!-- type="module" enables ES import/export across js/*.js.
        NOTE: browsers block module scripts loaded via file://, so this
        must be served over http(s) — see README.md "Running locally". -->
-  <script type="module" src="js/main.js"></script>
-</body>
+    <script type="module" src="js/main.js?v=20260922-2"></script>
+  </body>
 </html>

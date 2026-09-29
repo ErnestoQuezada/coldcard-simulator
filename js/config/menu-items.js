@@ -14,11 +14,12 @@
  */
 
 export const MENU_ITEMS = [
-  'Ready To Sign',
-  'Passphrase',
-  'Import Seed',
-  'New Seed Words',
-  'Address Explorer',
-  'Advanced/Tools',
-  'Settings',
+  "Ready To Sign",
+  "Passphrase",
+  "Import Seed",
+  "New Seed Words",
+  "Wallet Storage",
+  "Address Explorer",
+  "Advanced/Tools",
+  "Settings",
 ];

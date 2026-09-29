@@ -28,15 +28,32 @@
  *     listeners naturally.)
  */
 
-import { DeviceStateMachine } from './device-state.js';
-import { ScreenRenderer } from '../ui/screen-renderer.js';
-import { KeypadController } from '../ui/keypad-controller.js';
-import { initThemePicker } from '../ui/theme-picker.js';
-import { MENU_ITEMS } from '../config/menu-items.js';
-import { THEMES } from '../config/themes.js';
-import { buildGenericJsonExport, EXPORT_FILENAME } from './wallet-export.js';
-import { buildCosignerExport, cosignerExportFilename } from './multisig-wallet.js';
-import { downloadJSON, downloadBinaryFile, downloadTextFile, openBinaryFile } from '../io/file-io.js';
+import { DeviceStateMachine } from "./device-state.js";
+import { ScreenRenderer } from "../ui/screen-renderer.js";
+import { KeypadController } from "../ui/keypad-controller.js";
+import { initThemePicker } from "../ui/theme-picker.js";
+import { MENU_ITEMS } from "../config/menu-items.js";
+import { THEMES } from "../config/themes.js";
+import { buildGenericJsonExport, EXPORT_FILENAME } from "./wallet-export.js";
+import {
+  buildCosignerExport,
+  cosignerExportFilename,
+} from "./multisig-wallet.js";
+import {
+  downloadJSON,
+  downloadBinaryFile,
+  downloadTextFile,
+  openBinaryFile,
+} from "../io/file-io.js";
+import {
+  saveWallet,
+  listWallets,
+  loadWallet,
+  deleteWallet,
+  saveMultisigWallet,
+  listMultisigWallets,
+  loadMultisigWallet,
+} from "../io/wallet-storage.js";
 
 let instanceCounter = 0;
 
@@ -44,7 +61,7 @@ export class DeviceInstance {
   /**
    * @param {HTMLTemplateElement} template - the <template id="device-template">
    */
-  constructor(template) {
+  constructor(template, themeSlot = 0) {
     /** @type {string} stable unique id, independent of on-screen position */
     this.id = `device-${++instanceCounter}`;
 
@@ -53,12 +70,12 @@ export class DeviceInstance {
 
     // Scope every lookup to this instance's own root — never use a
     // global id/query, since a sibling instance has the same classes.
-    this.deviceEl = this.rootEl.querySelector('.device');
-    this.canvasEl = this.rootEl.querySelector('.screen-canvas');
-    this.keypadEl = this.rootEl.querySelector('.keypad');
-    this.swatchesEl = this.rootEl.querySelector('.swatches');
-    this.labelEl = this.rootEl.querySelector('.device-label');
-    this.removeBtnEl = this.rootEl.querySelector('.device-remove-btn');
+    this.deviceEl = this.rootEl.querySelector(".device");
+    this.canvasEl = this.rootEl.querySelector(".screen-canvas");
+    this.keypadEl = this.rootEl.querySelector(".keypad");
+    this.swatchesEl = this.rootEl.querySelector(".swatches");
+    this.labelEl = this.rootEl.querySelector(".device-label");
+    this.removeBtnEl = this.rootEl.querySelector(".device-remove-btn");
 
     this.state = new DeviceStateMachine(MENU_ITEMS, {
       // These are the ONLY places a real file dialog/download happens
@@ -66,9 +83,10 @@ export class DeviceInstance {
       // psbt-signer.js, or io/file-io.js itself — it only calls these
       // callbacks, keeping the state machine DOM-free. See
       // device-state.js's constructor doc for the full reasoning.
-      onExportRequested: (wallet) => downloadJSON(EXPORT_FILENAME, buildGenericJsonExport(wallet)),
+      onExportRequested: (wallet) =>
+        downloadJSON(EXPORT_FILENAME, buildGenericJsonExport(wallet)),
       onSignRequested: async () => {
-        const file = await openBinaryFile({ accept: '.psbt' });
+        const file = await openBinaryFile({ accept: ".psbt" });
         if (!file) {
           this.state.handlePsbtLoadCancelled();
           return;
@@ -76,35 +94,60 @@ export class DeviceInstance {
         this.state.handlePsbtFileLoaded(file.name, file.bytes);
       },
       onPsbtSigned: (filename, bytes) => downloadBinaryFile(filename, bytes),
-      onExportCosignerRequested: (wallet) => downloadJSON(cosignerExportFilename(wallet), buildCosignerExport(wallet)),
+      onExportCosignerRequested: (wallet) =>
+        downloadJSON(
+          cosignerExportFilename(wallet),
+          buildCosignerExport(wallet),
+        ),
       onCombineRequested: async () => {
-        const file = await openBinaryFile({ accept: '.json' });
+        const file = await openBinaryFile({ accept: ".json" });
         if (!file) {
           this.state.handleCosignerFileLoadCancelled();
           return;
         }
-        this.state.handleCosignerFileLoaded(new TextDecoder().decode(file.bytes));
+        this.state.handleCosignerFileLoaded(
+          new TextDecoder().decode(file.bytes),
+        );
       },
       onRegisterRequested: async () => {
-        const file = await openBinaryFile({ accept: '.txt' });
+        const file = await openBinaryFile({ accept: ".txt" });
         if (!file) {
           this.state.handleRegisterFileLoadCancelled();
           return;
         }
-        this.state.handleRegisterFileLoaded(new TextDecoder().decode(file.bytes));
+        this.state.handleRegisterFileLoaded(
+          new TextDecoder().decode(file.bytes),
+        );
       },
-      onMultisigConfigReady: (filename, text) => downloadTextFile(filename, text),
+      onMultisigConfigReady: (filename, text) =>
+        downloadTextFile(filename, text),
+      onWalletSaveRequested: saveWallet,
+      onWalletListRequested: listWallets,
+      onWalletLoadRequested: loadWallet,
+      onWalletDeleteRequested: deleteWallet,
+      onMultisigSaveRequested: saveMultisigWallet,
+      onMultisigListRequested: listMultisigWallets,
+      onMultisigLoadRequested: loadMultisigWallet,
     });
     this.renderer = new ScreenRenderer(this.canvasEl);
-    this.keypad = new KeypadController(this.keypadEl, (key) => this.state.handleKey(key));
-    initThemePicker(this.swatchesEl, this.deviceEl, THEMES);
+    this.keypad = new KeypadController(this.keypadEl, (key) =>
+      this.state.handleKey(key),
+    );
+    this.setThemeSlot = initThemePicker(
+      this.swatchesEl,
+      this.deviceEl,
+      THEMES,
+      themeSlot,
+    );
 
     // Clicking anywhere on the device makes it the "active" one, so
     // physical keyboard input follows the user's attention. Workspace
     // listens for this custom event rather than reaching back into
     // each instance's internals.
-    this.rootEl.addEventListener('pointerdown', () => {
-      this.rootEl.dispatchEvent(new CustomEvent('device-focus-request', { bubbles: true }));
+    this.rootEl.addEventListener("pointerdown", () => {
+      this.rootEl.dispatchEvent(
+        new CustomEvent("device-focus-request", { bubbles: true }),
+      );
     });
   }
 
@@ -115,7 +158,7 @@ export class DeviceInstance {
 
   /** @param {boolean} isActive - toggles the visual focus ring */
   setActive(isActive) {
-    this.rootEl.classList.toggle('active', isActive);
+    this.rootEl.classList.toggle("active", isActive);
   }
 
   /** @param {boolean} canRemove - false disables the remove button (last device left) */
