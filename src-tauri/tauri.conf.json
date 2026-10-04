@@ -14,8 +14,8 @@
     "windows": [
       {
         "title": "Coldcard Simulator",
-        "width": 360,
-        "height": 650,
+        "width": 420,
+        "height": 780,
         "resizable": false,
         "fullscreen": false,
         "transparent": true,

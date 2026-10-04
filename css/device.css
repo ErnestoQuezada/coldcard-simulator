@@ -29,8 +29,8 @@
   );
   box-shadow:
     /* drop shadow, lifts the device off the page */
-    0 30px 60px -20px rgba(0, 0, 0, 0.7),
-    0 8px 20px rgba(0, 0, 0, 0.5),
+    0 15px 30px -10px rgba(0, 0, 0, 0.4),
+    0 5px 15px rgba(0, 0, 0, 0.2),
     /* injection-molded bevel around all 4 edges */
     inset 0 3px 3px rgba(255, 255, 255, 0.65),
     inset 0 -4px 8px rgba(0, 0, 0, 0.3),

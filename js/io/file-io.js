@@ -50,9 +50,20 @@ export async function downloadBinaryFile(filename, bytes) {
   if (window.__TAURI__) {
     const { save } = window.__TAURI__.dialog;
     const { writeFile } = window.__TAURI__.fs;
-    const path = await save({ defaultPath: filename });
+    
+    // If the filename contains an extension, use it in filters so the save dialog is cleaner
+    const extMatch = filename.match(/\.([^.]+)$/);
+    const filters = extMatch ? [{ name: extMatch[1].toUpperCase(), extensions: [extMatch[1]] }] : [];
+
+    const path = await save({ defaultPath: filename, filters });
     if (path) {
-      await writeFile(path, bytes);
+      try {
+        await writeFile(path, bytes);
+      } catch (err) {
+        console.error("Tauri writeFile failed:", err);
+        // Fallback to browser download if native fs write fails (e.g. permission/scope errors)
+        triggerDownload(new Blob([bytes], { type: 'application/octet-stream' }), filename);
+      }
     }
   } else {
     triggerDownload(new Blob([bytes], { type: 'application/octet-stream' }), filename);
@@ -89,7 +100,7 @@ export async function openBinaryFile({ accept = '' } = {}) {
     const { open } = window.__TAURI__.dialog;
     const { readFile } = window.__TAURI__.fs;
     const filters = accept 
-      ? [{ name: 'Allowed Files', extensions: accept.split(',').map(e => e.trim().replace(/^\\./, '')) }] 
+      ? [{ name: 'Allowed Files', extensions: accept.split(',').map(e => e.trim().replace(/^\./, '')) }] 
       : [];
     
     const path = await open({
@@ -101,7 +112,7 @@ export async function openBinaryFile({ accept = '' } = {}) {
     if (!path) return null;
     
     // Extract filename from path
-    const name = path.split(/[\\\\/]/).pop();
+    const name = path.split(/[\\/]/).pop();
     const bytes = await readFile(path);
     return { name, bytes };
   }

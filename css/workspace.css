@@ -101,6 +101,7 @@
 html.tauri-mode,
 body.tauri-mode {
   background: transparent !important;
+  overflow: hidden !important;
 }
 
 body.tauri-mode .device-slot-header,
@@ -119,6 +120,12 @@ body.tauri-mode .device-slot {
   position: relative;
 }
 
+body.tauri-mode .device {
+  width: 400px !important;
+  max-width: none !important;
+  margin: 10px auto 40px auto !important; /* space for drop shadow */
+}
+
 body.tauri-mode .top-panel {
   -webkit-app-region: drag;
   cursor: grab;
@@ -128,12 +135,15 @@ body.tauri-mode .top-panel:active {
   cursor: grabbing;
 }
 
-/* Ensure children of top panel pass the drag through, except the canvas */
+/* Disable pointer events on decorative children so WebView2 doesn't drop the drag when crossing element boundaries */
 body.tauri-mode .top-panel * {
-  -webkit-app-region: drag;
+  pointer-events: none;
 }
 
+/* Re-enable pointer events for the screen so it can be interacted with, and disable drag on it */
+body.tauri-mode .screen-frame,
 body.tauri-mode .screen-canvas {
+  pointer-events: auto;
   -webkit-app-region: no-drag;
 }
 
