@@ -18,8 +18,8 @@
  * @param {string} filename
  * @param {object} data - JSON-serializable plain object
  */
-export function downloadJSON(filename, data) {
-  downloadTextFile(filename, JSON.stringify(data, null, 2));
+export async function downloadJSON(filename, data) {
+  await downloadTextFile(filename, JSON.stringify(data, null, 2));
 }
 
 /**
@@ -27,8 +27,17 @@ export function downloadJSON(filename, data) {
  * @param {string} filename
  * @param {string} content
  */
-export function downloadTextFile(filename, content) {
-  triggerDownload(new Blob([content], { type: 'application/octet-stream' }), filename);
+export async function downloadTextFile(filename, content) {
+  if (window.__TAURI__) {
+    const { save } = window.__TAURI__.dialog;
+    const { writeTextFile } = window.__TAURI__.fs;
+    const path = await save({ defaultPath: filename });
+    if (path) {
+      await writeTextFile(path, content);
+    }
+  } else {
+    triggerDownload(new Blob([content], { type: 'application/octet-stream' }), filename);
+  }
 }
 
 /**
@@ -37,8 +46,17 @@ export function downloadTextFile(filename, content) {
  * @param {string} filename
  * @param {Uint8Array} bytes
  */
-export function downloadBinaryFile(filename, bytes) {
-  triggerDownload(new Blob([bytes], { type: 'application/octet-stream' }), filename);
+export async function downloadBinaryFile(filename, bytes) {
+  if (window.__TAURI__) {
+    const { save } = window.__TAURI__.dialog;
+    const { writeFile } = window.__TAURI__.fs;
+    const path = await save({ defaultPath: filename });
+    if (path) {
+      await writeFile(path, bytes);
+    }
+  } else {
+    triggerDownload(new Blob([bytes], { type: 'application/octet-stream' }), filename);
+  }
 }
 
 function triggerDownload(blob, filename) {
@@ -66,7 +84,28 @@ function triggerDownload(blob, filename) {
  * @param {string} [opts.accept] - e.g. '.psbt'
  * @returns {Promise<{name: string, bytes: Uint8Array}|null>}
  */
-export function openBinaryFile({ accept = '' } = {}) {
+export async function openBinaryFile({ accept = '' } = {}) {
+  if (window.__TAURI__) {
+    const { open } = window.__TAURI__.dialog;
+    const { readFile } = window.__TAURI__.fs;
+    const filters = accept 
+      ? [{ name: 'Allowed Files', extensions: accept.split(',').map(e => e.trim().replace(/^\\./, '')) }] 
+      : [];
+    
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters
+    });
+    
+    if (!path) return null;
+    
+    // Extract filename from path
+    const name = path.split(/[\\\\/]/).pop();
+    const bytes = await readFile(path);
+    return { name, bytes };
+  }
+
   return new Promise((resolve) => {
     const input = document.createElement('input');
     input.type = 'file';

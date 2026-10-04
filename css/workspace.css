@@ -96,3 +96,61 @@
 .add-device-btn:disabled {
   display: none;
 }
+
+/* Tauri Mode Overrides */
+html.tauri-mode,
+body.tauri-mode {
+  background: transparent !important;
+}
+
+body.tauri-mode .device-slot-header,
+body.tauri-mode .add-device-btn,
+body.tauri-mode .hint {
+  display: none !important;
+}
+
+body.tauri-mode .device-slot.active .device {
+  box-shadow: 
+    0 30px 60px -20px rgba(0, 0, 0, 0.7),
+    0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+body.tauri-mode .device-slot {
+  position: relative;
+}
+
+body.tauri-mode .top-panel {
+  -webkit-app-region: drag;
+  cursor: grab;
+}
+
+body.tauri-mode .top-panel:active {
+  cursor: grabbing;
+}
+
+/* Ensure children of top panel pass the drag through, except the canvas */
+body.tauri-mode .top-panel * {
+  -webkit-app-region: drag;
+}
+
+body.tauri-mode .screen-canvas {
+  -webkit-app-region: no-drag;
+}
+
+body.tauri-mode .swatches {
+  display: none;
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1c1f24;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #3a3f47;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+body.tauri-mode .swatches.show {
+  display: flex;
+}

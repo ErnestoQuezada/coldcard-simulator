@@ -13,6 +13,11 @@
 import { Workspace } from './core/workspace.js';
 
 function main() {
+  if (window.__TAURI__) {
+    document.documentElement.classList.add('tauri-mode');
+    document.body.classList.add('tauri-mode');
+  }
+
   new Workspace({
     workspaceEl: document.getElementById('workspace'),
     template: document.getElementById('device-template'),

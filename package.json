@@ -1,0 +1,18 @@
+{
+  "name": "coldcard-web-simulator",
+  "version": "1.0.0",
+  "description": "Coldcard Mk5 hardware wallet simulator",
+  "scripts": {
+    "dev": "serve . -p 8000",
+    "build": "node build.mjs",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/cli": "^2.0.0",
+    "serve": "^14.2.0"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.8.1"
+  }
+}

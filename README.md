@@ -131,25 +131,70 @@ device does:
 
 Not bad for a browser toy.
 
-## Running it yourself
+## Running the Browser Version
 
-No build step. No `npm install`. It's plain HTML/CSS/JS with ES
-modules and locally vendored crypto libraries. Browsers block ES
-modules from loading over `file://`, so serve the project over HTTP
-with XAMPP or another local web server:
+The core simulator is plain HTML/CSS/JS with ES modules and locally vendored crypto libraries.
+While no build step is strictly required to run it in a browser, we now use `npm` to manage the local development server and Tauri desktop builds.
 
 ```bash
-# from inside the coldcard-web-simulator/ folder
-# with XAMPP, open http://localhost/coldcard-web-simulator
-# or use a PHP server from this folder:
-php -S localhost:8000
-# then open http://localhost:8000
+# Install development dependencies
+npm install
+
+# Start the local web server
+npm run dev
+# Then open http://localhost:8000
 ```
 
-Saved wallets stay in the browser profile's local storage and are not
-shared through the web server. Existing wallets in `data/wallets.sqlite`
-are not imported automatically; back up anything you need, then remove
-that legacy server-side database.
+Alternatively, you can still serve the project over HTTP with XAMPP or a PHP server:
+```bash
+php -S localhost:8000
+```
+
+Saved wallets stay in the browser profile's local storage and are not shared through the web server.
+
+## Desktop / Tauri Version
+
+This project includes a native desktop application powered by [Tauri 2](https://v2.tauri.app). The desktop version reuses the exact same frontend and core logic as the browser simulator but provides a better OS-level experience (native windows, native file open/save dialogs, offline access).
+
+### Architectural Decisions
+
+- **Shared Core Logic**: The simulator runs exactly the same JavaScript in both the browser and Tauri. There is no separate implementation.
+- **Native I/O Abstraction**: The `js/io/file-io.js` module automatically detects whether it's running inside Tauri (`window.__TAURI__`). If present, it uses Tauri's native file dialog and filesystem APIs for a seamless desktop experience. If absent, it gracefully falls back to browser-compatible mechanisms (`<input type="file">` and HTML5 `<a download>`).
+- **Security**: The Tauri application is tightly locked down. It requests only the minimal permissions required (dialog and scoped filesystem access for user-selected files). It does not have broad, unrestricted disk access, and it makes no external network requests.
+- **Persistence**: Wallet state is stored using standard `localStorage`, which Tauri isolates perfectly per-app just as a browser does per-origin.
+
+### Development Requirements
+
+To build and run the desktop application, you need the standard Tauri prerequisites installed on your system:
+- [Node.js](https://nodejs.org)
+- [Rust](https://www.rust-lang.org/)
+- OS-specific build tools (C++ build tools on Windows, Xcode on macOS, or `build-essential`/webkit2gtk on Linux).
+
+### Running the Desktop Version
+
+```bash
+# Install node dependencies if you haven't already
+npm install
+
+# Launch the Tauri desktop app in development mode
+npm run tauri dev
+```
+
+### Production Builds
+
+To create a standalone, distributable desktop binary:
+
+```bash
+npm run tauri build
+```
+
+The resulting artifacts are located in `src-tauri/target/release/bundle/`. 
+Supported platforms include **Windows, macOS, and Linux**. 
+Cross-compilation is generally not supported; you must run the build command on the specific OS you want to target.
+
+### Portable Windows Build
+
+For Windows users, the executable generated at `src-tauri/target/release/coldcard-web-simulator.exe` can be used as a fully portable application without requiring installation. It keeps user data isolated (using standard AppData paths), does not rely on source files, and can be easily copied to other machines. Installer bundles are also generated in the `bundle/` directory.
 
 ## How it's organized
 

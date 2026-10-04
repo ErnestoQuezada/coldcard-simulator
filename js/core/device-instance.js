@@ -149,6 +149,19 @@ export class DeviceInstance {
         new CustomEvent("device-focus-request", { bubbles: true }),
       );
     });
+
+    if (window.__TAURI__) {
+      const topPanel = this.rootEl.querySelector(".top-panel");
+      if (topPanel) {
+        topPanel.setAttribute("data-tauri-drag-region", "");
+        topPanel.querySelectorAll(".top-row, .brand-left, .brand-right, .logo, .frame-dots, .frame-dots span").forEach(el => el.setAttribute("data-tauri-drag-region", ""));
+      }
+
+      this.deviceEl.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        this.swatchesEl.classList.toggle("show");
+      });
+    }
   }
 
   /** @param {string} label - e.g. "Device 1" */
