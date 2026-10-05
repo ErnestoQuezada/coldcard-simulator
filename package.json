@@ -1,5 +1,5 @@
 {
-  "name": "coldcard-web-simulator",
+  "name": "coldcard-simulator",
   "version": "1.0.0",
   "description": "Coldcard Mk5 hardware wallet simulator",
   "scripts": {
