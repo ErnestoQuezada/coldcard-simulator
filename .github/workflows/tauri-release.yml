@@ -57,7 +57,7 @@ jobs:
 
       - name: Rename Windows Portable
         if: matrix.platform == 'windows-latest'
-        run: Rename-Item -Path "src-tauri/target/release/coldcard-simulator.exe" -NewName "Coldcard-Simulator-Portable.exe"
+        run: Rename-Item -Path "src-tauri/target/release/mk5.exe" -NewName "Coldcard-Simulator-Portable.exe"
 
       - name: Upload Windows Portable
         uses: softprops/action-gh-release@v2
