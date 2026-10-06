@@ -55,6 +55,18 @@ jobs:
           # On macOS, build a universal binary so it runs natively on both M-series and Intel Macs
           args: ${{ matrix.platform == 'macos-latest' && '--target universal-apple-darwin' || '' }}
 
+      - name: Rename Windows Portable
+        if: matrix.platform == 'windows-latest'
+        run: Rename-Item -Path "src-tauri/target/release/coldcard-simulator.exe" -NewName "Coldcard-Simulator-Portable.exe"
+
+      - name: Upload Windows Portable
+        uses: softprops/action-gh-release@v2
+        if: matrix.platform == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        with:
+          files: src-tauri/target/release/Coldcard-Simulator-Portable.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build-android:
     needs: publish-desktop
     permissions:
@@ -95,7 +107,7 @@ jobs:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Build Android App
-        run: npm run tauri android build
+        run: npm run tauri -- android build --debug
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
@@ -104,42 +116,42 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-            src-tauri/gen/android/app/build/outputs/bundle/universalRelease/app-universal-release.aab
+            src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-ios:
-    needs: publish-desktop
-    permissions:
-      contents: write
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios,x86_64-apple-ios,aarch64-apple-ios-sim
-
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Tauri iOS Init
-        run: npm run tauri ios init
-
-      - name: Build iOS App
-        run: npm run tauri ios build
-
-      - name: Upload IPA to Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: src-tauri/gen/ios/build/Release-iphoneos/*.ipa
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#  build-ios:
+#    needs: publish-desktop
+#    permissions:
+#      contents: write
+#    runs-on: macos-latest
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: Setup Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: lts/*
+#
+#      - name: Install Rust
+#        uses: dtolnay/rust-toolchain@stable
+#        with:
+#          targets: aarch64-apple-ios,x86_64-apple-ios,aarch64-apple-ios-sim
+#
+#      - name: Install frontend dependencies
+#        run: npm install
+#
+#      - name: Tauri iOS Init
+#        run: npm run tauri ios init
+#
+#      - name: Build iOS App
+#        # Requires an Apple Developer team ID and certificates
+#        run: npm run tauri ios build
+#
+#      - name: Upload IPA to Release
+#        uses: softprops/action-gh-release@v2
+#        if: startsWith(github.ref, 'refs/tags/')
+#        with:
+#          files: src-tauri/gen/ios/build/Release-iphoneos/*.ipa
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

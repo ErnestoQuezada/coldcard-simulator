@@ -4,27 +4,7 @@
 No install. No hardware. No servers. Just you, your keyboard, and a
 BIP39 seed that never leaves the tab.
 
-```
-          ╭─────────────────────────╮
-          │  CC                 Mk5 │
-          │ ┌─────────────────────┐ │
-          │ │                     │ │
-          │ │      Coldcard       │ │
-          │ │       Wallet        │ │
-          │ │                     │ │
-          │ └─────────────────────┘ │
-          │                         │
-          │   [1]     [2]     [3]   │
-          │                         │
-          │   [4]     [5]     [6]   │
-          │                         │
-          │   [7]     [8]     [9]   │
-          │                         │
-          │   [x]     [0]     [✓]   │
-          │                         │
-          ╰─────────────────────────╯
-       SIMULATOR · NOT A REAL DEVICE
-```
+![Coldcard Mk5](Mk5.png)
 
 ## What even is this?
 
